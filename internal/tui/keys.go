@@ -35,6 +35,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleStateMenuKeys(msg)
 	case ModeConfirmDelete:
 		return m.handleConfirmDeleteKeys(msg)
+	case ModeConfirmClearToday:
+		return m.handleConfirmClearTodayKeys(msg)
 	case ModeFilterMenu:
 		return m.handleFilterMenuKeys(msg)
 	case ModePriorityFilter:
@@ -424,7 +426,18 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if err := m.updateTaskPriority(""); err != nil {
 			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 		}
-		
+
+	case "y":
+		// Toggle "today" tag
+		if err := m.toggleTodayTag(); err != nil {
+			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+		}
+
+	case "Y":
+		// Clear "today" tag from all tasks (with confirmation)
+		m.mode = ModeConfirmClearToday
+		m.statusMsg = "Clear 'today' tag from ALL tasks? (y/n)"
+
 	case "E":
 		// Edit task in external editor (uppercase for Edit action)
 		if m.config.Editor != "" && m.cursor < len(m.filtered) {
@@ -1045,6 +1058,24 @@ func (m Model) handleConfirmDeleteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.affectedTasks = nil
 	}
 	
+	return m, nil
+}
+
+func (m Model) handleConfirmClearTodayKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "Y":
+		// Clear all today tags
+		if err := m.clearAllTodayTags(); err != nil {
+			m.statusMsg = fmt.Sprintf("Error clearing today tags: %v", err)
+		}
+		m.mode = ModeNormal
+
+	case "n", "N", "esc", "ctrl+c":
+		// Cancel
+		m.mode = ModeNormal
+		m.statusMsg = "Cancelled"
+	}
+
 	return m, nil
 }
 

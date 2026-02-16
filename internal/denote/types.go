@@ -105,6 +105,7 @@ type TaskMetadata struct {
 	Priority  string   `yaml:"priority,omitempty" json:"priority,omitempty"` // p1, p2, p3
 	DueDate   string   `yaml:"due_date,omitempty" json:"due_date,omitempty"` // YYYY-MM-DD format
 	StartDate string   `yaml:"start_date,omitempty" json:"start_date,omitempty"` // YYYY-MM-DD format
+	TodayDate string   `yaml:"today_date,omitempty" json:"today_date,omitempty"` // YYYY-MM-DD format - tagged for today
 	Estimate  int      `yaml:"estimate,omitempty" json:"estimate,omitempty"` // Fibonacci: 1,2,3,5,8,13
 	ProjectID string   `yaml:"project_id,omitempty" json:"project_id,omitempty"` // Denote ID of project (v2.0.0)
 	Area      string   `yaml:"area,omitempty" json:"area,omitempty"`    // Life context
@@ -131,6 +132,15 @@ type Task struct {
 	TaskMetadata
 	ModTime time.Time `json:"modified_at"` // File modification time
 	Content string    `json:"-"`           // Don't serialize full content in lists
+}
+
+// IsTaggedForToday checks if the task is tagged for today
+func (t *Task) IsTaggedForToday() bool {
+	if t.TaskMetadata.TodayDate == "" {
+		return false
+	}
+	today := time.Now().Format("2006-01-02")
+	return t.TaskMetadata.TodayDate == today
 }
 
 // Project combines File info with ProjectMetadata

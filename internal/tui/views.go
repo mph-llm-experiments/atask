@@ -167,8 +167,28 @@ func (m Model) renderFileList() string {
 	
 	var lines []string
 	todayStr := time.Now().Format("2006-01-02")
-	
-	// Check if we should show divider in the visible range
+
+	// Check if we should show "tagged for today" divider
+	showTodayDividerAt := -1
+	for i := 0; i < len(m.filtered); i++ {
+		file := m.filtered[i]
+		if file.IsTask() {
+			if task, err := denote.ParseTaskFile(file.Path); err == nil {
+				// Show divider after last today task
+				if !task.IsTaggedForToday() && i > 0 {
+					// Check if previous task was tagged for today
+					if prevTask, err := denote.ParseTaskFile(m.filtered[i-1].Path); err == nil {
+						if prevTask.IsTaggedForToday() {
+							showTodayDividerAt = i
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Check if we should show "due today" divider in the visible range
 	showDividerAt := -1
 	if m.sortBy == "due" && !m.reverseSort {
 		// Find where to show the divider in the full list
@@ -193,7 +213,20 @@ func (m Model) renderFileList() string {
 	}
 	
 	for i := start; i < end; i++ {
-		// Show divider if this is the position
+		// Show "tagged for today" divider if this is the position
+		if i == showTodayDividerAt {
+			label := "★ tagged for today"
+			lineWidth := m.width - len(label) - 2 // Leave some margin
+			if lineWidth < 10 {
+				lineWidth = 10 // Minimum width
+			}
+			divider := strings.Repeat("─", lineWidth) + label
+			// Use a subtle color for the divider
+			todayDividerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+			lines = append(lines, todayDividerStyle.Render(divider))
+		}
+
+		// Show "due today" divider if this is the position
 		if i == showDividerAt {
 			// Create a responsive divider that adjusts to terminal width
 			label := "→ due today"
@@ -204,7 +237,7 @@ func (m Model) renderFileList() string {
 			divider := strings.Repeat("─", lineWidth) + label
 			lines = append(lines, helpStyle.Render(divider))
 		}
-		
+
 		line := m.renderFileLine(i)
 		lines = append(lines, line)
 	}
@@ -250,13 +283,17 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 	if index == m.cursor {
 		selector = ">"
 	}
-	
+
+	// Today indicator
+	todayIndicator := " "
+	if task.IsTaggedForToday() {
+		todayIndicator = "★"
+	}
+
 	// Format: Status Priority Title (Area) [Due Date]
 	status := StatusSymbolOpen // open
-	isDone := false
 	if task.TaskMetadata.Status == denote.TaskStatusDone {
 		status = StatusSymbolDone
-		isDone = true
 	} else if task.TaskMetadata.Status == denote.TaskStatusPaused {
 		status = StatusSymbolPaused
 	} else if task.TaskMetadata.Status == denote.TaskStatusDelegated {
@@ -265,17 +302,33 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 		status = StatusSymbolDropped
 	}
 	
-	// Priority with color
-	priority := "    " // Default empty space for alignment
+	// Priority with color - pad FIRST, then apply color
+	priorityStr := "    " // Default: 4 spaces
 	switch task.TaskMetadata.Priority {
 	case PriorityLevels[0]:
-		priority = priorityHighStyle.Render("[p1]")
+		priorityStr = "[p1]"
 	case PriorityLevels[1]:
-		priority = priorityMediumStyle.Render("[p2]")
+		priorityStr = "[p2]"
 	case PriorityLevels[2]:
-		priority = priorityLowStyle.Render("[p3]")
+		priorityStr = "[p3]"
 	}
-	
+
+	// Ensure exactly 4 chars before applying color
+	priorityStr = fmt.Sprintf("%-4s", priorityStr)
+
+	// Now apply color to the padded string
+	var priority string
+	switch task.TaskMetadata.Priority {
+	case PriorityLevels[0]:
+		priority = priorityHighStyle.Render(priorityStr)
+	case PriorityLevels[1]:
+		priority = priorityMediumStyle.Render(priorityStr)
+	case PriorityLevels[2]:
+		priority = priorityLowStyle.Render(priorityStr)
+	default:
+		priority = priorityStr // Already 4 spaces
+	}
+
 	// Estimate
 	estimate := "     " // Default empty space for alignment (5 spaces)
 	if task.TaskMetadata.Estimate > 0 {
@@ -336,27 +389,27 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 		}
 	}
 	
-	// Due date with consistent width
-	due := ""
-	isOverdue := false
+	// Due date with consistent width - pad FIRST, then apply color
+	var due string
+	dateStr := ""
 	if task.TaskMetadata.DueDate != "" {
-		dateStr := fmt.Sprintf("[%s]", task.TaskMetadata.DueDate)
+		dateStr = fmt.Sprintf("[%s]", task.TaskMetadata.DueDate)
+	}
+
+	// Pad to consistent width BEFORE applying any color
+	dateStr = fmt.Sprintf("%-*s", ColumnWidthDueSpaces, dateStr)
+
+	// Now apply color to the padded string
+	if task.TaskMetadata.DueDate != "" {
 		if denote.IsOverdue(task.TaskMetadata.DueDate) {
-			// Red for overdue
 			due = overdueStyle.Render(dateStr)
-			isOverdue = true
 		} else if denote.IsDueSoon(task.TaskMetadata.DueDate, m.config.SoonHorizon) {
-			// Orange for soon
 			due = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Render(dateStr)
 		} else {
-			// Normal color for future
-			due = dateStr
+			due = dateStr // No color, already padded
 		}
-		// Pad to consistent width (dates are typically 12 chars [YYYY-MM-DD])
-		due = fmt.Sprintf("%*s", -ColumnWidthDueSpaces, due)
 	} else {
-		// Empty date placeholder for alignment
-		due = strings.Repeat(" ", ColumnWidthDueSpaces)
+		due = dateStr // Empty, already padded with spaces
 	}
 	
 	// Tags - use metadata tags (from YAML frontmatter), not filename tags
@@ -371,44 +424,30 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 		tagStr = fmt.Sprintf("[%s]", strings.Join(displayTags, ", "))
 	}
 	
-	// Build the line with proper spacing
-	// Note: priority and due already have color codes, so we use %s instead of fixed width
-	// Format: selector status priority estimate due title tags area project
-	line := fmt.Sprintf("%s %s %s %s %s  %*s %*s %*s %s", 
-		selector,
-		status, 
-		priority, 
-		estimate,                                      // Right after priority
-		due,                                           // After estimate
-		-ColumnWidthTitle, truncate(title, ColumnWidthTitle),     // Good room for title (with 2 spaces before)
-		-ColumnWidthTags, truncate(tagStr, ColumnWidthTags),    // Tags
-		-ColumnWidthArea, truncate(area, ColumnWidthArea),      // Area (truncated for consistency)
-		projectName)                                   // Project at the very end
-	
-	// Apply overall styling
+	// Build the line by padding each field to consistent width
+	// This avoids mixing lipgloss Width() (which handles ANSI codes) with fmt.Sprintf (which doesn't)
+
+	// Pad title, tags, and area to fixed widths using plain padding (no colors on these fields)
+	titlePadded := fmt.Sprintf("%-*s", ColumnWidthTitle, truncate(title, ColumnWidthTitle))
+	tagsPadded := fmt.Sprintf("%-*s", ColumnWidthTags, truncate(tagStr, ColumnWidthTags))
+	areaPadded := fmt.Sprintf("%-*s", ColumnWidthArea, truncate(area, ColumnWidthArea))
+
+	// Build line: selector today status priority estimate due title tags area project
+	line := selector + todayIndicator + " " + status + " " + priority + " " + estimate + " " + due + "  " + titlePadded + " " + tagsPadded + " " + areaPadded + " " + projectName
+
+	// Apply styling only to parts that don't already have color
+	// Don't wrap the entire line in .Render() as it interferes with ANSI width calculations
+
+	// Color the selector for selected items
 	if index == m.cursor {
-		return selectedStyle.Render(line)
-	} else if isDone {
-		return doneStyle.Render(line)
-	} else if isOverdue {
-		return overdueStyle.Render(line)
+		selector = selectedStyle.Render(">")
+		// Rebuild line with colored selector
+		line = selector + todayIndicator + " " + status + " " + priority + " " + estimate + " " + due + "  " + titlePadded + " " + tagsPadded + " " + areaPadded + " " + projectName
 	}
-	
-	// Apply status-specific styling
-	switch task.TaskMetadata.Status {
-	case denote.TaskStatusPaused:
-		return pausedStyle.Render(line)
-	case denote.TaskStatusDelegated:
-		return delegatedStyle.Render(line)
-	case denote.TaskStatusDropped:
-		return droppedStyle.Render(line)
-	}
-	
-	// No need to apply priority coloring to the whole line anymore
-	// since we colored the priority badge directly
-	
-	// Apply base style for better readability
-	return baseStyle.Render(line)
+
+	// Return the line without additional .Render() wrapping
+	// This preserves the width calculations for the colored priority and due fields
+	return line
 }
 
 func (m Model) renderProjectLine(index int, file denote.File, project *denote.Project) string {
@@ -420,14 +459,12 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 	
 	// Use same status indicator style as tasks
 	status := "▶" // Project indicator
-	isCompleted := false
 	isActive := false
-	
+
 	// DEBUG: Check exact status matching
 	switch project.ProjectMetadata.Status {
 	case denote.ProjectStatusCompleted:
 		status = "●"
-		isCompleted = true
 	case denote.ProjectStatusPaused:
 		status = "◐"
 	case denote.ProjectStatusCancelled:
@@ -483,12 +520,6 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		area = fmt.Sprintf("(%s)", project.ProjectMetadata.Area)
 	}
 	
-	// Check if overdue
-	isOverdue := false
-	if project.ProjectMetadata.DueDate != "" {
-		isOverdue = denote.IsOverdue(project.ProjectMetadata.DueDate)
-	}
-	
 	// Tags - use metadata tags (from YAML frontmatter), not filename tags
 	var displayTags []string
 	for _, tag := range project.ProjectMetadata.Tags {
@@ -540,58 +571,43 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		}
 	}
 	
-	// Prepare padded strings BEFORE applying colors
-	titlePadded := fmt.Sprintf("%*s", -ColumnWidthTitle, titleTruncated)
-	tagsPadded := fmt.Sprintf("%*s", -ColumnWidthTags, truncate(tagStr, ColumnWidthTags))
-	areaPadded := fmt.Sprintf("%*s", -ColumnWidthArea, truncate(area, ColumnWidthArea))
-	
-	// Apply cyan to components if active
-	statusDisplay := status
-	titleDisplay := titlePadded
-	tagsDisplay := tagsPadded
-	areaDisplay := areaPadded
-	
+	// Apply cyan to components BEFORE padding if active
+	var statusDisplay, titleFormatted, tagsFormatted, areaFormatted string
+
 	if isActive {
 		statusDisplay = cyanStyle.Render(status)
-		titleDisplay = cyanStyle.Render(titlePadded)
-		tagsDisplay = cyanStyle.Render(tagsPadded)
-		areaDisplay = cyanStyle.Render(areaPadded)
+		titleFormatted = cyanStyle.Render(titleTruncated)
+		tagsFormatted = cyanStyle.Render(truncate(tagStr, ColumnWidthTags))
+		areaFormatted = cyanStyle.Render(truncate(area, ColumnWidthArea))
+	} else {
+		statusDisplay = status
+		titleFormatted = titleTruncated
+		tagsFormatted = truncate(tagStr, ColumnWidthTags)
+		areaFormatted = truncate(area, ColumnWidthArea)
 	}
-	
-	// Build line with pre-padded, pre-colored components
-	// Include empty estimate column space to align with tasks
-	line := fmt.Sprintf("%s %s %s       %s  %s %s %s %s", 
-		selector,
-		statusDisplay, 
-		priority,      // priority
-		              // 6 spaces for estimate column + 1 space separator  
-		dueDisplay,
-		titleDisplay,
-		tagsDisplay,
-		areaDisplay,
-		"")                      // Empty project field
-	
-	// No project field for projects themselves
-	
-	// Apply styling
+
+	// NOW pad after coloring
+	titlePadded := fmt.Sprintf("%-*s", ColumnWidthTitle, titleFormatted)
+	tagsPadded := fmt.Sprintf("%-*s", ColumnWidthTags, tagsFormatted)
+	areaPadded := fmt.Sprintf("%-*s", ColumnWidthArea, areaFormatted)
+
+	// Build line matching task format exactly:
+	// selector + todayIndicator + " " + status + " " + priority + " " + estimate + " " + due + "  " + titlePadded + " " + tagsPadded + " " + areaPadded + " " + projectName
+	todayIndicator := " " // Projects don't have today indicator
+	estimate := "     "   // Projects don't have estimates, 5 spaces to match task format
+
+	line := selector + todayIndicator + " " + statusDisplay + " " + priority + " " + estimate + " " + dueDisplay + "  " + titlePadded + " " + tagsPadded + " " + areaPadded + " "
+
+	// Color the selector for selected items (like we do for tasks)
 	if index == m.cursor {
-		return selectedStyle.Render(line)
-	} else if isCompleted {
-		return doneStyle.Render(line)
-	} else if isOverdue && !isActive {
-		// Only apply overdue style if not active
-		return overdueStyle.Render(line)
+		selector = selectedStyle.Render(">")
+		// Rebuild line with colored selector
+		line = selector + todayIndicator + " " + statusDisplay + " " + priority + " " + estimate + " " + dueDisplay + "  " + titlePadded + " " + tagsPadded + " " + areaPadded + " "
 	}
-	
-	// Default styling for other statuses
-	switch project.ProjectMetadata.Status {
-	case denote.ProjectStatusPaused:
-		return pausedStyle.Render(line)
-	case denote.ProjectStatusCancelled:
-		return droppedStyle.Render(line)
-	}
-	
-	return baseStyle.Render(line)
+
+	// Return the line without additional .Render() wrapping
+	// This preserves the width calculations for the colored fields
+	return line
 }
 
 func (m Model) renderFooter() string {
@@ -631,6 +647,7 @@ func (m Model) renderFooter() string {
 			"c:create task",
 			"0-3:priority",
 			"s:state",
+			"y:today",
 			"d:due date",
 			"t:tags",
 			"x:delete",
@@ -1005,6 +1022,34 @@ func (m Model) renderConfirmDelete() string {
 		Bold(true)
 	
 	return prompt + warning + fileName + "\n" + dangerStyle.Render(options)
+}
+
+func (m Model) renderConfirmClearToday() string {
+	prompt := titleStyle.Render("Clear All 'Today' Tags")
+
+	// Count how many tasks are tagged for today
+	count := 0
+	for _, file := range m.files {
+		if file.IsTask() {
+			if task, err := denote.ParseTaskFile(file.Path); err == nil {
+				if task.IsTaggedForToday() {
+					count++
+				}
+			}
+		}
+	}
+
+	warning := baseStyle.Render(fmt.Sprintf("\nClear 'today' tag from all %d task(s)?", count))
+
+	options := `
+
+  (y) Yes, clear all today tags
+  (n) No, cancel`
+
+	warningStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("214"))
+
+	return prompt + warning + "\n" + warningStyle.Render(options)
 }
 
 func (m Model) renderFilterMenu() string {

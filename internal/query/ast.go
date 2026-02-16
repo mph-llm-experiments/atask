@@ -99,6 +99,14 @@ func (n *ComparisonNode) Evaluate(task *denote.Task, cfg *config.Config) bool {
 		}
 		return compareString(task.TaskMetadata.StartDate, n.Operator, value)
 
+	case "today", "today_date":
+		// Special value: "tagged" means tagged for today
+		if value == "tagged" || value == "true" {
+			return n.Operator == ":" && task.IsTaggedForToday()
+		}
+		// Otherwise compare as date string
+		return compareString(task.TaskMetadata.TodayDate, n.Operator, value)
+
 	case "title":
 		return compareString(strings.ToLower(task.TaskMetadata.Title), n.Operator, value)
 

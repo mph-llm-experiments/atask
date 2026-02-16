@@ -105,6 +105,7 @@ const (
 	ModeProjectView
 	ModeStateMenu
 	ModeConfirmDelete
+	ModeConfirmClearToday
 	ModeFilterMenu
 	ModePriorityFilter
 	ModeStateFilter
@@ -306,6 +307,51 @@ func (m *Model) applyFilters() {
 func (m *Model) sortFiles() {
 	// Sort without cached metadata - SortTaskFiles will read fresh from disk
 	denote.SortTaskFiles(m.filtered, m.sortBy, m.reverseSort, nil, nil)
+
+	// Pre-compute today status for all tasks to avoid repeated file reads
+	todayStatus := make(map[string]bool)
+	for _, file := range m.filtered {
+		if file.IsTask() {
+			if task, err := denote.ParseTaskFile(file.Path); err == nil {
+				todayStatus[file.Path] = task.IsTaggedForToday()
+			}
+		}
+	}
+
+	// Stable sort to move "today" tasks to the top
+	// This preserves the order from the main sort within each group
+	sort.SliceStable(m.filtered, func(i, j int) bool {
+		// Check if items are tasks or projects
+		iTask := m.filtered[i].IsTask()
+		jTask := m.filtered[j].IsTask()
+
+		// If one is a task and one is a project, tasks come first
+		if iTask && !jTask {
+			return true // i (task) comes before j (project)
+		}
+		if !iTask && jTask {
+			return false // j (task) comes before i (project)
+		}
+
+		// If both are projects, maintain current order
+		if !iTask && !jTask {
+			return false
+		}
+
+		// Both are tasks - check today status
+		iToday := todayStatus[m.filtered[i].Path]
+		jToday := todayStatus[m.filtered[j].Path]
+
+		// Today tasks always come before non-today tasks
+		if iToday && !jToday {
+			return true
+		}
+		if !iToday && jToday {
+			return false
+		}
+		// If both are today or both are not today, maintain current order
+		return false
+	})
 }
 
 func (m Model) Init() tea.Cmd {
@@ -680,6 +726,118 @@ func (m *Model) updateTaskPriority(priority string) error {
 		return fmt.Errorf("selected file is neither task nor project")
 	}
 	
+	return nil
+}
+
+// toggleTodayTag toggles the today_date field on the selected task
+func (m *Model) toggleTodayTag() error {
+	if m.cursor >= len(m.filtered) {
+		return fmt.Errorf("no item selected")
+	}
+
+	file := m.filtered[m.cursor]
+
+	// Only works for tasks
+	if !file.IsTask() {
+		return fmt.Errorf("today tag only works for tasks")
+	}
+
+	// Read the file content
+	content, err := os.ReadFile(file.Path)
+	if err != nil {
+		return fmt.Errorf(ErrorFailedTo, "read file", err)
+	}
+
+	// Parse existing frontmatter
+	fm, err := denote.ParseFrontmatterFile(content)
+	if err != nil {
+		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
+	}
+
+	taskMeta, ok := fm.Metadata.(denote.TaskMetadata)
+	if !ok {
+		return fmt.Errorf("invalid task metadata")
+	}
+
+	// Toggle today_date
+	todayStr := time.Now().Format("2006-01-02")
+	if taskMeta.TodayDate == todayStr {
+		// Already tagged for today, clear it
+		taskMeta.TodayDate = ""
+		m.statusMsg = "Removed from today"
+	} else {
+		// Tag for today
+		taskMeta.TodayDate = todayStr
+		m.statusMsg = "Tagged for today ★"
+	}
+
+	// Write updated content
+	newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
+	if err != nil {
+		return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
+		return fmt.Errorf(ErrorFailedTo, "write file", err)
+	}
+
+	// Re-sort to update position
+	m.scanFiles()
+
+	return nil
+}
+
+// clearAllTodayTags clears the today_date field from all tasks
+func (m *Model) clearAllTodayTags() error {
+	count := 0
+	for _, file := range m.files {
+		if !file.IsTask() {
+			continue
+		}
+
+		// Read the file content
+		content, err := os.ReadFile(file.Path)
+		if err != nil {
+			continue // Skip files we can't read
+		}
+
+		// Parse existing frontmatter
+		fm, err := denote.ParseFrontmatterFile(content)
+		if err != nil {
+			continue // Skip files we can't parse
+		}
+
+		taskMeta, ok := fm.Metadata.(denote.TaskMetadata)
+		if !ok {
+			continue
+		}
+
+		// Skip if not tagged for today
+		if taskMeta.TodayDate == "" {
+			continue
+		}
+
+		// Clear today_date
+		taskMeta.TodayDate = ""
+
+		// Write updated content
+		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
+		if err != nil {
+			continue // Skip if we can't write
+		}
+
+		// Write to file
+		if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
+			continue // Skip if we can't save
+		}
+
+		count++
+	}
+
+	m.statusMsg = fmt.Sprintf("Cleared 'today' tag from %d task(s)", count)
+	m.scanFiles()
+
 	return nil
 }
 
@@ -1227,6 +1385,8 @@ func (m Model) View() string {
 		return m.renderStateMenu()
 	case ModeConfirmDelete:
 		return m.renderConfirmDelete()
+	case ModeConfirmClearToday:
+		return m.renderConfirmClearToday()
 	case ModeFilterMenu:
 		return m.renderFilterMenu()
 	case ModePriorityFilter:
