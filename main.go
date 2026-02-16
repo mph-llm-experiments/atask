@@ -8,7 +8,7 @@ import (
 	"github.com/pdxmph/atask/internal/config"
 )
 
-var version = "0.17.3"
+var version = "0.19.0"
 var specVersion = "2.0.0"
 
 func main() {
