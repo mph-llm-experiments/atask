@@ -4,10 +4,10 @@
 
 ```bash
 # Build the application
-go build ./cmd/denote-tasks
+go build ./cmd/atask
 
 # Run with test config
-./denote-tasks --config test-config.toml --tui
+./atask --config test-config.toml --tui
 ```
 
 ## Test Cases for Task Metadata Features

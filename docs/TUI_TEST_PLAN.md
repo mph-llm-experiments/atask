@@ -8,12 +8,12 @@ This document provides a comprehensive test plan for the basic TUI implementatio
 
 1. Build the application:
    ```bash
-   go build ./cmd/denote-tasks
+   go build ./cmd/atask
    ```
 
 2. Use the provided test configuration:
    ```bash
-   ./denote-tasks --config test-config.toml --tui
+   ./atask --config test-config.toml --tui
    ```
 
 3. Or create your own test environment:

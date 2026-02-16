@@ -1,9 +1,25 @@
 # Changelog
 
-All notable changes to denote-tasks will be documented in this file.
+All notable changes to atask will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+- **Project renamed from "denote-tasks" to "atask"**
+  - Binary name: `denote-tasks` → `atask`
+  - Go module: `github.com/pdxmph/denote-tasks` → `github.com/pdxmph/atask`
+  - Config directory: `~/.config/denote-tasks/` → `~/.config/atask/`
+  - Skill name: `denote-tasks` → `atask`
+  - Completion files: `denote-tasks.bash`, `_denote-tasks` → `atask.bash`, `_atask`
+  - All documentation and help text updated
+  - **Breaking change**: Existing installations will need to:
+    - Reinstall or rebuild the binary
+    - Rename config directory: `mv ~/.config/denote-tasks ~/.config/atask`
+    - Reinstall shell completions
+    - Update SKILL.md installation path in `~/.claude/skills/`
 
 ## [0.18.0] - 2026-02-15
 
@@ -75,8 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 See git tags and commit history for changes prior to v0.17.0.
 
-[0.17.3]: https://github.com/mph-llm-experiments/denote-tasks/compare/v0.17.2...v0.17.3
-[0.17.2]: https://github.com/mph-llm-experiments/denote-tasks/compare/v0.17.1...v0.17.2
-[0.17.1]: https://github.com/mph-llm-experiments/denote-tasks/compare/v0.17.0...v0.17.1
-[0.17.0]: https://github.com/mph-llm-experiments/denote-tasks/compare/v0.16.1...v0.17.0
-[0.16.1]: https://github.com/mph-llm-experiments/denote-tasks/releases/tag/v0.16.1
+[0.17.3]: https://github.com/mph-llm-experiments/atask/compare/v0.17.2...v0.17.3
+[0.17.2]: https://github.com/mph-llm-experiments/atask/compare/v0.17.1...v0.17.2
+[0.17.1]: https://github.com/mph-llm-experiments/atask/compare/v0.17.0...v0.17.1
+[0.17.0]: https://github.com/mph-llm-experiments/atask/compare/v0.16.1...v0.17.0
+[0.16.1]: https://github.com/mph-llm-experiments/atask/releases/tag/v0.16.1

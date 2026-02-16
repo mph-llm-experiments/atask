@@ -184,8 +184,8 @@ project_associations = {
     'it': '20250114T100700',
     'apex': '20250114T100100',
     'sunsetting': '20250114T101300',
-    'denote-tasks': '20250113T152000',
-    'project-denote-tasks': '20250113T152000'
+    'atask': '20250113T152000',
+    'project-atask': '20250113T152000'
 }
 
 # Second pass: Fix project_id references in tasks

@@ -1,36 +1,36 @@
-#compdef denote-tasks
+#compdef atask
 
-# Zsh completion for denote-tasks
+# Zsh completion for atask
 
 # Helper function to get task IDs
 _denote_tasks_get_task_ids() {
     local -a ids
-    ids=(${(f)"$(denote-tasks completion task-ids 2>/dev/null)"})
+    ids=(${(f)"$(atask completion task-ids 2>/dev/null)"})
     echo "$ids"
 }
 
 # Helper function to get project IDs
 _denote_tasks_get_project_ids() {
     local -a projects
-    projects=(${(f)"$(denote-tasks completion project-ids 2>/dev/null)"})
+    projects=(${(f)"$(atask completion project-ids 2>/dev/null)"})
     echo "$projects"
 }
 
 # Helper function to get areas
 _denote_tasks_get_areas() {
     local -a areas
-    areas=(${(f)"$(denote-tasks completion areas 2>/dev/null)"})
+    areas=(${(f)"$(atask completion areas 2>/dev/null)"})
     echo "$areas"
 }
 
 # Helper function to get tags
 _denote_tasks_get_tags() {
     local -a tags
-    tags=(${(f)"$(denote-tasks completion tags 2>/dev/null)"})
+    tags=(${(f)"$(atask completion tags 2>/dev/null)"})
     echo "$tags"
 }
 
-_denote-tasks() {
+_atask() {
     local curcontext="$curcontext" state line
     typeset -A opt_args
 
@@ -206,4 +206,4 @@ _denote-tasks() {
     esac
 }
 
-_denote-tasks "$@"
+_atask "$@"

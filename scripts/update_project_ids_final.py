@@ -57,7 +57,7 @@ for task_file in glob.glob("test-notes/*__task*.md"):
         old_id = id_match.group(1)
         new_id = None
         
-        # Skip if it's already the denote-tasks project
+        # Skip if it's already the atask project
         if old_id == "20250113T152000":
             continue
         

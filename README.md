@@ -1,4 +1,4 @@
-# denote-tasks
+# atask
 
 A focused task management tool using the Denote file naming convention for portability. This project has no association with the Denote project.
 
@@ -22,7 +22,7 @@ That said:
 
 ## What it is
 
-`denote-tasks` is a specialized tool for managing tasks and projects using plain text files with the Denote naming convention. Each task is a Markdown file with YAML frontmatter containing task metadata (priority, due date, project assignment, etc.).
+`atask` is a specialized tool for managing tasks and projects using plain text files with the Denote naming convention. Each task is a Markdown file with YAML frontmatter containing task metadata (priority, due date, project assignment, etc.).
 
 ## What it isn't
 
@@ -35,16 +35,16 @@ That said:
 
 ```bash
 # Install
-go install github.com/pdxmph/denote-tasks@latest
+go install github.com/pdxmph/atask@latest
 
 # Create your first task
-denote-tasks new -p p1 --due tomorrow "Review pull request"
+atask new -p p1 --due tomorrow "Review pull request"
 
 # Launch the TUI
-denote-tasks --tui
+atask --tui
 
 # Filter by area in TUI
-denote-tasks --tui --area work
+atask --tui --area work
 ```
 
 ## Features
@@ -60,7 +60,7 @@ denote-tasks --tui --area work
 
 ### AI Agent Integration
 
-`denote-tasks` is designed to work seamlessly with AI agents like Claude, localgpt, and openclaw:
+`atask` is designed to work seamlessly with AI agents like Claude, localgpt, and openclaw:
 
 - **JSON output** (`--json`) for all list/query commands enables programmatic parsing
 - **Query language** allows agents to construct complex filters without parsing CLI flags
@@ -70,69 +70,69 @@ denote-tasks --tui --area work
 Example agent workflow:
 ```bash
 # Agent searches for relevant tasks
-denote-tasks query "area:work AND content:API" --json | jq '.[] | .index_id'
+atask query "area:work AND content:API" --json | jq '.[] | .index_id'
 
 # Agent updates multiple tasks
-denote-tasks batch-update --where "tag:sprint-42 AND status:open" --status done
+atask batch-update --where "tag:sprint-42 AND status:open" --status done
 
 # Agent creates task from conversation context
-denote-tasks new -p p1 --due "next monday" --area work "Implement OAuth flow"
+atask new -p p1 --due "next monday" --area work "Implement OAuth flow"
 ```
 
 ## Installation
 
 ```bash
-go install github.com/pdxmph/denote-tasks@latest
+go install github.com/pdxmph/atask@latest
 ```
 
 Or for a specific version:
 
 ```bash
-go install github.com/pdxmph/denote-tasks@v0.17.0
+go install github.com/pdxmph/atask@v0.17.0
 ```
 
 ## Usage
 
 ```bash
 # Create a new task
-denote-tasks new "Fix search bug"
-denote-tasks new -p p1 --due tomorrow "Call client"
+atask new "Fix search bug"
+atask new -p p1 --due tomorrow "Call client"
 
 # List tasks
-denote-tasks list
-denote-tasks list -p p1 --area work
-denote-tasks list --json  # Machine-readable output
+atask list
+atask list -p p1 --area work
+atask list --json  # Machine-readable output
 
 # Search in content
-denote-tasks list --search "API integration"
-denote-tasks project list --search "Q1"
+atask list --search "API integration"
+atask project list --search "Q1"
 
 # Advanced queries with boolean logic
-denote-tasks query "status:open AND priority:p1"
-denote-tasks query "due:soon OR due:overdue"
-denote-tasks query "area:work AND content:blocker"
-denote-tasks query "(priority:p1 OR priority:p2) AND NOT status:done"
+atask query "status:open AND priority:p1"
+atask query "due:soon OR due:overdue"
+atask query "area:work AND content:blocker"
+atask query "(priority:p1 OR priority:p2) AND NOT status:done"
 
 # Update tasks (uses index_id from list)
-denote-tasks update -p p2 28
-denote-tasks done 28,35
+atask update -p p2 28
+atask done 28,35
 
 # Batch update with conditions
-denote-tasks batch-update --where "area:work AND status:paused" --status open
-denote-tasks batch-update --where "due:overdue" --priority p1 --dry-run
+atask batch-update --where "area:work AND status:paused" --status open
+atask batch-update --where "due:overdue" --priority p1 --dry-run
 
 # Add log entries
-denote-tasks log 28 "Found root cause"
+atask log 28 "Found root cause"
 
 # Interactive TUI
-denote-tasks --tui
-denote-tasks --tui --area work  # Start filtered by area
+atask --tui
+atask --tui --area work  # Start filtered by area
 
 # Project management
-denote-tasks project new "Q1 Planning"
-denote-tasks project list
-denote-tasks project list --json
-denote-tasks project tasks 15  # Show tasks for project
+atask project new "Q1 Planning"
+atask project list
+atask project list --json
+atask project tasks 15  # Show tasks for project
 ```
 
 ### TUI Hotkeys
@@ -210,30 +210,30 @@ The `query` command supports complex filtering with boolean expressions:
 
 ```bash
 # High priority open tasks
-denote-tasks query "status:open AND priority:p1"
+atask query "status:open AND priority:p1"
 
 # Tasks due soon or overdue
-denote-tasks query "due:soon OR due:overdue"
+atask query "due:soon OR due:overdue"
 
 # Work tasks with specific content
-denote-tasks query "area:work AND content:blocker"
+atask query "area:work AND content:blocker"
 
 # Complex queries with grouping
-denote-tasks query "(priority:p1 OR priority:p2) AND NOT status:done"
+atask query "(priority:p1 OR priority:p2) AND NOT status:done"
 
 # Tasks without a project
-denote-tasks query "project_id:empty"
+atask query "project_id:empty"
 
 # Tasks with estimates over 5
-denote-tasks query "estimate>5"
+atask query "estimate>5"
 
 # Combine with output formats
-denote-tasks query "status:open AND tag:v2mom" --json
+atask query "status:open AND tag:v2mom" --json
 ```
 
 ## Configuration
 
-Create `~/.config/denote-tasks/config.toml`:
+Create `~/.config/atask/config.toml`:
 
 ```toml
 notes_directory = "~/tasks"  # Where task files live (kept for backward compatibility)
@@ -255,10 +255,10 @@ For AI agents (Claude Code, etc.), install the skill file for enhanced integrati
 
 ```bash
 # Create skill directory if it doesn't exist
-mkdir -p ~/.claude/skills/denote-tasks
+mkdir -p ~/.claude/skills/atask
 
 # Copy the skill file
-cp SKILL.md ~/.claude/skills/denote-tasks/
+cp SKILL.md ~/.claude/skills/atask/
 
 # The skill will be automatically available to Claude-based agents
 ```

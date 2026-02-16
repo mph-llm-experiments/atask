@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/pdxmph/denote-tasks/internal/denote"
+	"github.com/pdxmph/atask/internal/denote"
 )
 
 var (

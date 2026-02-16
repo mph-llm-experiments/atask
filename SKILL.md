@@ -1,11 +1,11 @@
 ---
-name: denote-tasks
-description: Local task and project management using the denote-tasks CLI. Use when creating tasks, managing projects, tracking work, generating task reports, or organizing personal/work items.
+name: atask
+description: Local task and project management using the atask CLI. Use when creating tasks, managing projects, tracking work, generating task reports, or organizing personal/work items.
 ---
 
-# Denote-Tasks CLI Assistant
+# atask CLI Assistant
 
-Expert in creating and managing tasks and projects using the denote-tasks CLI tool. This skill enables agents to help users track tasks, organize projects, and generate reports on their work.
+Expert in creating and managing tasks and projects using the atask CLI tool. This skill enables agents to help users track tasks, organize projects, and generate reports on their work.
 
 ## 🤖 AI Agent Features
 
@@ -25,27 +25,27 @@ Expert in creating and managing tasks and projects using the denote-tasks CLI to
 
 ```
 ├─ 📖 READ/FIND TASKS
-│  ├─ Simple list? → denote-tasks list --json
-│  ├─ Complex filter (AND/OR)? → denote-tasks query "expression" --json
-│  ├─ Search by keyword/content? → denote-tasks list --search "term" --json
-│  └─ Find by content + filters? → denote-tasks query "content:term AND field:value" --json
+│  ├─ Simple list? → atask list --json
+│  ├─ Complex filter (AND/OR)? → atask query "expression" --json
+│  ├─ Search by keyword/content? → atask list --search "term" --json
+│  └─ Find by content + filters? → atask query "content:term AND field:value" --json
 │
 ├─ ✏️ CREATE TASKS
-│  ├─ Single task → denote-tasks new "title" [--options]
-│  └─ Task in project → denote-tasks new "title" --project <project-id> [--options]
+│  ├─ Single task → atask new "title" [--options]
+│  └─ Task in project → atask new "title" --project <project-id> [--options]
 │
 ├─ 🔄 UPDATE TASKS
-│  ├─ One/few tasks by ID → denote-tasks update --priority p1 28,35
-│  ├─ Multiple by condition → denote-tasks batch-update --where "query" [--options]
-│  └─ Mark done → denote-tasks done 28,35
+│  ├─ One/few tasks by ID → atask update --priority p1 28,35
+│  ├─ Multiple by condition → atask batch-update --where "query" [--options]
+│  └─ Mark done → atask done 28,35
 │
 ├─ 📊 GENERATE REPORTS
-│  ├─ Status report → denote-tasks query "(priority:p1 OR due:overdue) AND NOT status:done" --json
-│  ├─ Project tasks → denote-tasks project tasks <id> --json
-│  └─ Custom report → denote-tasks query "your-query" --json | jq 'your-filter'
+│  ├─ Status report → atask query "(priority:p1 OR due:overdue) AND NOT status:done" --json
+│  ├─ Project tasks → atask project tasks <id> --json
+│  └─ Custom report → atask query "your-query" --json | jq 'your-filter'
 │
 └─ 💬 ADD NOTES
-   └─ Log entry → denote-tasks log 28 "message"
+   └─ Log entry → atask log 28 "message"
 ```
 
 **🎯 Golden Rule:** If the output will be processed → add `--json` to the command!
@@ -58,46 +58,46 @@ Expert in creating and managing tasks and projects using the denote-tasks CLI to
 
 ```bash
 # Query with JSON output (PREFERRED for agents)
-denote-tasks query "status:open AND priority:p1" --json
+atask query "status:open AND priority:p1" --json
 
 # Full-text search in content
-denote-tasks list --search "API integration" --json
+atask list --search "API integration" --json
 
 # Batch update with conditions
-denote-tasks batch-update --where "due:overdue" --priority p1 --dry-run
+atask batch-update --where "due:overdue" --priority p1 --dry-run
 
 # List with JSON output
-denote-tasks list --area work --json
-denote-tasks project list --json
+atask list --area work --json
+atask project list --json
 ```
 
 ### Basic Task Operations
 
 ```bash
 # Create tasks
-denote-tasks new "Task title" [options]
+atask new "Task title" [options]
 
 # List and filter
-denote-tasks list [filters]                    # Text output
-denote-tasks list [filters] --json             # JSON output (preferred for agents)
-denote-tasks query "filter expression" --json  # Complex filtering (preferred for agents)
+atask list [filters]                    # Text output
+atask list [filters] --json             # JSON output (preferred for agents)
+atask query "filter expression" --json  # Complex filtering (preferred for agents)
 
 # Update tasks
-denote-tasks update [options] <task-ids>       # Specific IDs
-denote-tasks batch-update --where "query" [options]  # Conditional (preferred for agents)
-denote-tasks done <task-ids>
+atask update [options] <task-ids>       # Specific IDs
+atask batch-update --where "query" [options]  # Conditional (preferred for agents)
+atask done <task-ids>
 
 # Other operations
-denote-tasks log <task-id> <message>
+atask log <task-id> <message>
 ```
 
 ### Project Operations
 
 ```bash
-denote-tasks project new "Project title" [options]
-denote-tasks project list [filters] --json     # JSON output (preferred for agents)
-denote-tasks project update [options] <project-ids>
-denote-tasks project tasks <project-id> --json # JSON output (preferred for agents)
+atask project new "Project title" [options]
+atask project list [filters] --json     # JSON output (preferred for agents)
+atask project update [options] <project-ids>
+atask project tasks <project-id> --json # JSON output (preferred for agents)
 ```
 
 ### Critical Global Flags
@@ -118,34 +118,34 @@ denote-tasks project tasks <project-id> --json # JSON output (preferred for agen
 
 1. **Find tasks** → Use `query` with `--json`:
    ```bash
-   denote-tasks query "area:work AND (due:soon OR priority:p1)" --json
+   atask query "area:work AND (due:soon OR priority:p1)" --json
    ```
 
 2. **Search by content/keywords** → Use `--search` or `content:`:
    ```bash
-   denote-tasks list --search "API" --json
-   denote-tasks query "content:blocker AND status:open" --json
+   atask list --search "API" --json
+   atask query "content:blocker AND status:open" --json
    ```
 
 3. **Get all tasks/projects** → Use `list` with `--json`:
    ```bash
-   denote-tasks list --json
-   denote-tasks project list --json
+   atask list --json
+   atask project list --json
    ```
 
 4. **Update multiple tasks** → Use `batch-update`:
    ```bash
-   denote-tasks batch-update --where "tag:sprint-42 AND status:open" --status done
+   atask batch-update --where "tag:sprint-42 AND status:open" --status done
    ```
 
 5. **Parse output** → ALWAYS use `--json` and parse with jq:
    ```bash
-   denote-tasks query "status:open" --json | jq '.[] | .index_id'
+   atask query "status:open" --json | jq '.[] | .index_id'
    ```
 
 6. **Preview changes** → ALWAYS use `--dry-run` first:
    ```bash
-   denote-tasks batch-update --where "area:work" --priority p1 --dry-run
+   atask batch-update --where "area:work" --priority p1 --dry-run
    ```
 
 **❌ Avoid:** Parsing text output, using `list` without `--json`, updating tasks one-by-one when batch-update would work
@@ -154,7 +154,7 @@ denote-tasks project tasks <project-id> --json # JSON output (preferred for agen
 
 ## Configuration
 
-**Config file:** `~/.config/denote-tasks/config.toml`
+**Config file:** `~/.config/atask/config.toml`
 
 **Key settings:**
 - `notes_directory` - Where task files are stored (default: `~/tasks`)
@@ -163,7 +163,7 @@ denote-tasks project tasks <project-id> --json # JSON output (preferred for agen
 
 **Check config location:**
 ```bash
-cat ~/.config/denote-tasks/config.toml | grep notes_directory
+cat ~/.config/atask/config.toml | grep notes_directory
 ```
 
 ## Creating Tasks
@@ -172,13 +172,13 @@ cat ~/.config/denote-tasks/config.toml | grep notes_directory
 
 ```bash
 # Simple task
-denote-tasks new "Review pull request"
+atask new "Review pull request"
 
 # Task with priority and due date
-denote-tasks new -p p1 --due tomorrow "Call client"
+atask new -p p1 --due tomorrow "Call client"
 
 # Task with all metadata
-denote-tasks new \
+atask new \
   -p p2 \
   --due "2026-02-20" \
   --area work \
@@ -200,13 +200,13 @@ denote-tasks new \
 
 **Get project ID first:**
 ```bash
-denote-tasks project list
+atask project list
 # Note the Denote ID from output (e.g., 20260215T143010)
 ```
 
 **Create linked task:**
 ```bash
-denote-tasks new \
+atask new \
   --project 20260215T143010 \
   -p p1 \
   "Implement search feature"
@@ -218,52 +218,52 @@ denote-tasks new \
 
 ```bash
 # List open tasks (default)
-denote-tasks list
+atask list
 
 # List all tasks including completed
-denote-tasks list --all
+atask list --all
 
 # List with specific filters
-denote-tasks list -p p1              # Only p1 priority
-denote-tasks list --area work        # Only work tasks
-denote-tasks list --status open      # Only open tasks
-denote-tasks list --overdue          # Only overdue tasks
-denote-tasks list --soon             # Tasks due soon
+atask list -p p1              # Only p1 priority
+atask list --area work        # Only work tasks
+atask list --status open      # Only open tasks
+atask list --overdue          # Only overdue tasks
+atask list --soon             # Tasks due soon
 ```
 
 ### Sorting
 
 ```bash
 # Sort by different fields
-denote-tasks list --sort priority    # By priority
-denote-tasks list --sort due         # By due date
-denote-tasks list --sort created     # By creation date
-denote-tasks list --sort modified    # By modification date (default)
-denote-tasks list --sort priority -r # Reverse order
+atask list --sort priority    # By priority
+atask list --sort due         # By due date
+atask list --sort created     # By creation date
+atask list --sort modified    # By modification date (default)
+atask list --sort priority -r # Reverse order
 ```
 
 ### Combined Filters
 
 ```bash
 # High priority work tasks due soon
-denote-tasks list -p p1 --area work --soon
+atask list -p p1 --area work --soon
 
 # Overdue personal tasks
-denote-tasks list --area personal --overdue
+atask list --area personal --overdue
 
 # All done tasks in work area
-denote-tasks list --all --status done --area work
+atask list --all --status done --area work
 ```
 
 ### Full-Text Search
 
 ```bash
 # Search in task content (not just title/metadata)
-denote-tasks list --search "API integration"
-denote-tasks project list --search "Q1"
+atask list --search "API integration"
+atask project list --search "Q1"
 
 # Combine with other filters
-denote-tasks list --search "blocker" --area work --soon
+atask list --search "blocker" --area work --soon
 ```
 
 ## Advanced Filtering with Query Language
@@ -302,37 +302,37 @@ The `query` command provides powerful filtering with boolean expressions.
 
 ```bash
 # Basic queries
-denote-tasks query "status:open AND priority:p1"
-denote-tasks query "due:soon OR due:overdue"
-denote-tasks query "area:work AND NOT status:done"
+atask query "status:open AND priority:p1"
+atask query "due:soon OR due:overdue"
+atask query "area:work AND NOT status:done"
 
 # Content search in queries
-denote-tasks query "content:blocker AND area:work"
-denote-tasks query "status:open AND content:API"
+atask query "content:blocker AND area:work"
+atask query "status:open AND content:API"
 
 # Complex queries with grouping
-denote-tasks query "(priority:p1 OR priority:p2) AND status:open"
-denote-tasks query "area:work AND (due:overdue OR due:today)"
+atask query "(priority:p1 OR priority:p2) AND status:open"
+atask query "area:work AND (due:overdue OR due:today)"
 
 # Special values
-denote-tasks query "project_id:empty"          # Tasks not in a project
-denote-tasks query "due:set AND estimate>5"    # Tasks with due date and large estimates
-denote-tasks query "tag:sprint-42"              # Tasks tagged with sprint-42
+atask query "project_id:empty"          # Tasks not in a project
+atask query "due:set AND estimate>5"    # Tasks with due date and large estimates
+atask query "tag:sprint-42"              # Tasks tagged with sprint-42
 
 # Combine with output formats
-denote-tasks query "status:open AND area:work" --json
-denote-tasks query "due:soon" --sort due
+atask query "status:open AND area:work" --json
+atask query "due:soon" --sort due
 ```
 
 ### When to Use Query vs List
 
 - **Use `list`** for simple filters (single field, common patterns)
-  - `denote-tasks list -p p1 --area work`
-  - `denote-tasks list --overdue --soon`
+  - `atask list -p p1 --area work`
+  - `atask list --overdue --soon`
 
 - **Use `query`** for complex logic (AND/OR/NOT, multiple conditions)
-  - `denote-tasks query "area:work AND (due:overdue OR priority:p1)"`
-  - `denote-tasks query "NOT project_id:empty AND content:blocker"`
+  - `atask query "area:work AND (due:overdue OR priority:p1)"`
+  - `atask query "NOT project_id:empty AND content:blocker"`
 
 ## Updating Tasks
 
@@ -342,16 +342,16 @@ denote-tasks query "due:soon" --sort due
 
 ```bash
 # Update single task
-denote-tasks update -p p2 28
+atask update -p p2 28
 
 # Update multiple tasks (comma-separated)
-denote-tasks update --area work 28,35,61
+atask update --area work 28,35,61
 
 # Update range of tasks
-denote-tasks update --due "next week" 10-15
+atask update --due "next week" 10-15
 
 # Update mixed IDs
-denote-tasks update --status paused 28,35-40,61
+atask update --status paused 28,35-40,61
 ```
 
 ### Update Options
@@ -367,13 +367,13 @@ denote-tasks update --status paused 28,35-40,61
 
 ```bash
 # Mark single task done
-denote-tasks done 28
+atask done 28
 
 # Mark multiple tasks done
-denote-tasks done 28,35,61
+atask done 28,35,61
 
 # Mark range done
-denote-tasks done 10-15
+atask done 10-15
 ```
 
 ### Batch Update with Conditional Filters
@@ -382,19 +382,19 @@ Update multiple tasks at once based on query conditions.
 
 ```bash
 # Preview changes before applying (dry-run)
-denote-tasks batch-update --where "area:work AND status:paused" --status open --dry-run
+atask batch-update --where "area:work AND status:paused" --status open --dry-run
 
 # Update all overdue tasks to high priority
-denote-tasks batch-update --where "due:overdue" --priority p1
+atask batch-update --where "due:overdue" --priority p1
 
 # Move all tasks from one project to another
-denote-tasks batch-update --where "project_id:20260201T120000" --project 20260215T143010
+atask batch-update --where "project_id:20260201T120000" --project 20260215T143010
 
 # Update tasks by tag
-denote-tasks batch-update --where "tag:sprint-42 AND status:open" --status done
+atask batch-update --where "tag:sprint-42 AND status:open" --status done
 
 # Clear due dates for paused tasks
-denote-tasks batch-update --where "status:paused" --due ""
+atask batch-update --where "status:paused" --due ""
 ```
 
 **Supported Update Options:**
@@ -415,21 +415,21 @@ All list and query commands support `--json` flag for machine-readable output.
 
 ```bash
 # Get tasks as JSON
-denote-tasks list --json
-denote-tasks query "status:open" --json
+atask list --json
+atask query "status:open" --json
 
 # Projects as JSON
-denote-tasks project list --json
-denote-tasks project tasks 15 --json
+atask project list --json
+atask project tasks 15 --json
 
 # Parse with jq
-denote-tasks query "area:work AND priority:p1" --json | jq '.[] | {id: .index_id, title: .title}'
+atask query "area:work AND priority:p1" --json | jq '.[] | {id: .index_id, title: .title}'
 
 # Extract specific fields
-denote-tasks list --area work --json | jq '.[] | .index_id'
+atask list --area work --json | jq '.[] | .index_id'
 
 # Count tasks by status
-denote-tasks list --all --json | jq 'group_by(.status) | map({status: .[0].status, count: length})'
+atask list --all --json | jq 'group_by(.status) | map({status: .[0].status, count: length})'
 ```
 
 ### JSON Structure
@@ -480,10 +480,10 @@ Add timestamped log entries to tasks:
 
 ```bash
 # Add log entry
-denote-tasks log 28 "Discussed with team, waiting for feedback"
+atask log 28 "Discussed with team, waiting for feedback"
 
 # Add progress note
-denote-tasks log 35 "Completed first draft, ready for review"
+atask log 35 "Completed first draft, ready for review"
 ```
 
 ## Creating Projects
@@ -492,10 +492,10 @@ denote-tasks log 35 "Completed first draft, ready for review"
 
 ```bash
 # Simple project
-denote-tasks project new "Q1 Planning"
+atask project new "Q1 Planning"
 
 # Project with metadata
-denote-tasks project new \
+atask project new \
   -p p1 \
   --due "2026-03-31" \
   --start "2026-02-01" \
@@ -518,37 +518,37 @@ denote-tasks project new \
 
 ```bash
 # List active projects (default)
-denote-tasks project list
+atask project list
 
 # List all projects
-denote-tasks project list --all
+atask project list --all
 
 # Filter projects
-denote-tasks project list --area work
-denote-tasks project list -p p1
-denote-tasks project list --status completed
+atask project list --area work
+atask project list -p p1
+atask project list --status completed
 ```
 
 ### View Project Tasks
 
 ```bash
 # Show all tasks for a project (by index_id)
-denote-tasks project tasks 15
+atask project tasks 15
 
 # Show only open tasks for project
-denote-tasks project tasks 15
+atask project tasks 15
 
 # Show all tasks including done
-denote-tasks project tasks 15 --all
+atask project tasks 15 --all
 ```
 
 ### Update Projects
 
 ```bash
 # Update project metadata
-denote-tasks project update -p p2 15
-denote-tasks project update --due "2026-04-30" 15
-denote-tasks project update --status completed 15
+atask project update -p p2 15
+atask project update --due "2026-04-30" 15
+atask project update --status completed 15
 ```
 
 ### Project Status Values
@@ -564,48 +564,48 @@ denote-tasks project update --status completed 15
 
 ```bash
 # Check what's due today/overdue
-denote-tasks list --overdue
-denote-tasks list --soon
+atask list --overdue
+atask list --soon
 
 # Priority tasks for today
-denote-tasks list -p p1 --soon
+atask list -p p1 --soon
 ```
 
 ### Weekly Report
 
 ```bash
 # Tasks completed this week (manual date filter needed)
-denote-tasks list --all --status done
+atask list --all --status done
 
 # Upcoming tasks
-denote-tasks list --soon --sort due
+atask list --soon --sort due
 ```
 
 ### Project Status Report
 
 ```bash
 # All active projects
-denote-tasks project list
+atask project list
 
 # Projects by area
-denote-tasks project list --area work
-denote-tasks project list --area personal
+atask project list --area work
+atask project list --area personal
 
 # View tasks for each project
-denote-tasks project tasks <project-id>
+atask project tasks <project-id>
 ```
 
 ### Area-Based Reports
 
 ```bash
 # Work tasks summary
-denote-tasks --area work list -p p1
+atask --area work list -p p1
 
 # Personal tasks
-denote-tasks --area personal list --soon
+atask --area personal list --soon
 
 # All tasks in area
-denote-tasks --area work list --all
+atask --area work list --all
 ```
 
 ## Common Workflows
@@ -614,85 +614,85 @@ denote-tasks --area work list --all
 
 ```bash
 # 1. Check overdue tasks
-denote-tasks list --overdue
+atask list --overdue
 
 # 2. Check what's due soon
-denote-tasks list --soon --sort due
+atask list --soon --sort due
 
 # 3. Review high priority tasks
-denote-tasks list -p p1 --area work
+atask list -p p1 --area work
 ```
 
 ### Creating a New Project with Tasks
 
 ```bash
 # 1. Create project
-denote-tasks project new -p p1 --area work "Website Redesign"
+atask project new -p p1 --area work "Website Redesign"
 
 # 2. Get project ID from output or list
-denote-tasks project list
+atask project list
 
 # 3. Create tasks linked to project
-denote-tasks new --project <project-id> -p p1 "Design mockups"
-denote-tasks new --project <project-id> -p p2 "Frontend implementation"
-denote-tasks new --project <project-id> -p p2 "Backend integration"
+atask new --project <project-id> -p p1 "Design mockups"
+atask new --project <project-id> -p p2 "Frontend implementation"
+atask new --project <project-id> -p p2 "Backend integration"
 
 # 4. View project tasks
-denote-tasks project tasks <project-id>
+atask project tasks <project-id>
 ```
 
 ### Weekly Planning Workflow
 
 ```bash
 # 1. Review completed work
-denote-tasks list --all --status done --area work
+atask list --all --status done --area work
 
 # 2. Check upcoming deadlines
-denote-tasks list --soon --sort due
+atask list --soon --sort due
 
 # 3. Review project status
-denote-tasks project list --area work
+atask project list --area work
 
 # 4. Create tasks for the week
-denote-tasks new -p p1 --due monday "Plan sprint"
-denote-tasks new -p p2 --due wednesday "Team sync"
+atask new -p p1 --due monday "Plan sprint"
+atask new -p p2 --due wednesday "Team sync"
 ```
 
 ### Bulk Task Management
 
 ```bash
 # Traditional approach: Update specific tasks by ID
-denote-tasks update --project <project-id> 28,35,61
-denote-tasks done 10-15
+atask update --project <project-id> 28,35,61
+atask done 10-15
 
 # Modern approach: Conditional batch updates
 # 1. Preview what will change
-denote-tasks batch-update --where "area:work AND status:paused" --status open --dry-run
+atask batch-update --where "area:work AND status:paused" --status open --dry-run
 
 # 2. Apply the update
-denote-tasks batch-update --where "area:work AND status:paused" --status open
+atask batch-update --where "area:work AND status:paused" --status open
 
 # 3. Update all overdue tasks to high priority
-denote-tasks batch-update --where "due:overdue" --priority p1
+atask batch-update --where "due:overdue" --priority p1
 
 # 4. Associate all sprint tasks with a project
-denote-tasks batch-update --where "tag:sprint-42" --project <project-id>
+atask batch-update --where "tag:sprint-42" --project <project-id>
 ```
 
 ### Context-Based Task Management
 
 ```bash
 # Find tasks by content and context
-denote-tasks query "content:API AND area:work AND NOT status:done"
+atask query "content:API AND area:work AND NOT status:done"
 
 # Find tasks mentioning a specific topic
-denote-tasks list --search "database migration" --area work
+atask list --search "database migration" --area work
 
 # Complex queries for specific situations
-denote-tasks query "(due:overdue OR due:today) AND priority:p1"
+atask query "(due:overdue OR due:today) AND priority:p1"
 
 # Export results for external processing
-denote-tasks query "area:work AND status:open" --json | jq '.[] | {id, title, due_date}'
+atask query "area:work AND status:open" --json | jq '.[] | {id, title, due_date}'
 ```
 
 ## Understanding IDs
@@ -707,22 +707,22 @@ denote-tasks query "area:work AND status:open" --json | jq '.[] | {id, title, du
 - Format: Sequential integer (e.g., `28`)
 - Source: `index_id` field in frontmatter
 - Use: Quick reference in CLI commands
-- Example: `denote-tasks done 28`
+- Example: `atask done 28`
 
 ### How to Reference
 
 ```bash
 # List shows both IDs
-denote-tasks list
+atask list
 # Output: "28 ○ [p1] [2026-02-20] Fix authentication bug"
 #          ^^ This is the index_id
 
 # Use index_id for CLI commands
-denote-tasks done 28
-denote-tasks log 28 "Fixed the issue"
+atask done 28
+atask log 28 "Fixed the issue"
 
 # Use Denote ID for project associations
-denote-tasks new --project 20260215T143010 "New task"
+atask new --project 20260215T143010 "New task"
 ```
 
 ## File Format Reference
@@ -786,26 +786,26 @@ Complete redesign of company website.
 ### Critical Rules (ALWAYS Follow)
 
 1. **🎯 ALWAYS use `--json` when reading output:**
-   - ✅ `denote-tasks list --json`
-   - ✅ `denote-tasks query "status:open" --json`
+   - ✅ `atask list --json`
+   - ✅ `atask query "status:open" --json`
    - ❌ NEVER parse text output - use JSON instead
 
 2. **🎯 PREFER `query` over `list` for complex filters:**
-   - ✅ `denote-tasks query "area:work AND (due:soon OR priority:p1)" --json`
+   - ✅ `atask query "area:work AND (due:soon OR priority:p1)" --json`
    - ❌ Avoid multiple `list` commands with different flags
 
 3. **🎯 ALWAYS use `--dry-run` before `batch-update`:**
-   - ✅ `denote-tasks batch-update --where "query" --status done --dry-run`
+   - ✅ `atask batch-update --where "query" --status done --dry-run`
    - ✅ Then remove `--dry-run` to apply
    - ❌ NEVER batch-update without preview
 
 4. **🎯 Use full-text search for context-based queries:**
-   - ✅ `denote-tasks list --search "API integration" --json`
-   - ✅ `denote-tasks query "content:blocker AND area:work" --json`
+   - ✅ `atask list --search "API integration" --json`
+   - ✅ `atask query "content:blocker AND area:work" --json`
    - User mentions keywords → search in content, not just titles
 
 5. **🎯 Use `batch-update` for multiple task changes:**
-   - ✅ `denote-tasks batch-update --where "tag:sprint AND status:open" --status done`
+   - ✅ `atask batch-update --where "tag:sprint AND status:open" --status done`
    - ❌ Avoid running `update` or `done` multiple times in a loop
 
 ### Task Creation Best Practices
@@ -821,8 +821,8 @@ Complete redesign of company website.
    - Link tasks using `--project <denote-id>`
 
 8. **Add log entries** for important updates:
-   - Track progress: `denote-tasks log 28 "50% complete"`
-   - Document blockers: `denote-tasks log 28 "Waiting for API access"`
+   - Track progress: `atask log 28 "50% complete"`
+   - Document blockers: `atask log 28 "Waiting for API access"`
 
 ### Query Language Best Practices
 
@@ -843,24 +843,24 @@ Complete redesign of company website.
 ### Can't find tasks directory
 ```bash
 # Check config
-cat ~/.config/denote-tasks/config.toml | grep notes_directory
+cat ~/.config/atask/config.toml | grep notes_directory
 
 # Override with flag
-denote-tasks --dir ~/custom/path list
+atask --dir ~/custom/path list
 ```
 
 ### Task not showing in list
 ```bash
 # Check if filtering is hiding it
-denote-tasks list --all
+atask list --all
 
 # Check specific area
-denote-tasks list --area work --all
+atask list --area work --all
 ```
 
 ### Getting "task not found" error
 - Ensure you're using the `index_id` from the frontmatter
-- List tasks first to verify ID: `denote-tasks list`
+- List tasks first to verify ID: `atask list`
 - Task IDs are stable - position in list doesn't matter
 
 ## Common Patterns
@@ -868,37 +868,37 @@ denote-tasks list --area work --all
 ### Sprint Planning
 ```bash
 # Create sprint project
-denote-tasks project new -p p1 --start monday --due "in 2 weeks" "Sprint 42"
+atask project new -p p1 --start monday --due "in 2 weeks" "Sprint 42"
 
 # Add sprint tasks
-denote-tasks new --project <sprint-id> -p p1 --due "next week" "Feature A"
-denote-tasks new --project <sprint-id> -p p2 --due "next week" "Feature B"
+atask new --project <sprint-id> -p p1 --due "next week" "Feature A"
+atask new --project <sprint-id> -p p2 --due "next week" "Feature B"
 
 # Daily standup report
-denote-tasks project tasks <sprint-id> --status open
+atask project tasks <sprint-id> --status open
 ```
 
 ### Weekly Review
 ```bash
 # Completed work
-denote-tasks list --all --status done --area work
+atask list --all --status done --area work
 
 # Carry-over tasks
-denote-tasks list --status open --area work
+atask list --status open --area work
 
 # Projects status
-denote-tasks project list --area work
+atask project list --area work
 ```
 
 ### Area-Based Workflows
 ```bash
 # Switch contexts with global area filter
-denote-tasks --area work list --soon      # Work context
-denote-tasks --area personal list         # Personal context
+atask --area work list --soon      # Work context
+atask --area personal list         # Personal context
 
 # Create area-specific tasks
-denote-tasks new --area work -p p1 "Work task"
-denote-tasks new --area personal "Personal task"
+atask new --area work -p p1 "Work task"
+atask new --area personal "Personal task"
 ```
 
 ## Integration Tips
@@ -917,71 +917,71 @@ When helping users:
 
 **User:** "Show me what I need to do today"
 ```bash
-denote-tasks list --soon --sort due
-denote-tasks list --overdue
+atask list --soon --sort due
+atask list --overdue
 ```
 
 **User:** "Create a project for the website redesign"
 ```bash
-denote-tasks project new -p p1 --area work --due "in 6 weeks" "Website Redesign"
+atask project new -p p1 --area work --due "in 6 weeks" "Website Redesign"
 # Note the Denote ID from output for future task creation
 ```
 
 **User:** "Add tasks for the website project"
 ```bash
 # Assuming project ID is 20260215T120000
-denote-tasks new --project 20260215T120000 -p p1 --due "next week" "Create design mockups"
-denote-tasks new --project 20260215T120000 -p p2 --due "in 2 weeks" "Implement frontend"
-denote-tasks new --project 20260215T120000 -p p2 --due "in 3 weeks" "Backend integration"
+atask new --project 20260215T120000 -p p1 --due "next week" "Create design mockups"
+atask new --project 20260215T120000 -p p2 --due "in 2 weeks" "Implement frontend"
+atask new --project 20260215T120000 -p p2 --due "in 3 weeks" "Backend integration"
 ```
 
 **User:** "What's the status of my work projects?"
 ```bash
-denote-tasks project list --area work
-denote-tasks list --area work -p p1
+atask project list --area work
+atask list --area work -p p1
 ```
 
 **User:** "Mark these tasks done: 28, 35, 40"
 ```bash
-denote-tasks done 28,35,40
+atask done 28,35,40
 ```
 
 **User:** "Find all work tasks that mention API and are overdue"
 ```bash
-denote-tasks query "area:work AND content:API AND due:overdue"
+atask query "area:work AND content:API AND due:overdue"
 ```
 
 **User:** "Show me high priority tasks as JSON so I can process them"
 ```bash
-denote-tasks query "priority:p1 AND status:open" --json
+atask query "priority:p1 AND status:open" --json
 ```
 
 **User:** "Move all paused tasks back to open status"
 ```bash
 # Preview first
-denote-tasks batch-update --where "status:paused" --status open --dry-run
+atask batch-update --where "status:paused" --status open --dry-run
 
 # Then apply
-denote-tasks batch-update --where "status:paused" --status open
+atask batch-update --where "status:paused" --status open
 ```
 
 **User:** "Find tasks that mention 'blocker' and make them high priority"
 ```bash
 # Find them first
-denote-tasks list --search "blocker"
+atask list --search "blocker"
 
 # Update them
-denote-tasks batch-update --where "content:blocker" --priority p1
+atask batch-update --where "content:blocker" --priority p1
 ```
 
 **User:** "Get all tasks for the current sprint (tagged sprint-42) that aren't done yet"
 ```bash
-denote-tasks query "tag:sprint-42 AND NOT status:done"
+atask query "tag:sprint-42 AND NOT status:done"
 ```
 
 **User:** "Show me tasks without a project that are due soon"
 ```bash
-denote-tasks query "project_id:empty AND due:soon"
+atask query "project_id:empty AND due:soon"
 ```
 
 ---
@@ -999,16 +999,16 @@ denote-tasks query "project_id:empty AND due:soon"
 
 ```bash
 # 1. Agent searches for relevant tasks based on conversation context
-denote-tasks query "area:work AND content:authentication" --json | jq '.[] | .index_id'
+atask query "area:work AND content:authentication" --json | jq '.[] | .index_id'
 
 # 2. Agent creates new task from user request
-denote-tasks new -p p1 --due "next monday" --area work "Implement OAuth flow"
+atask new -p p1 --due "next monday" --area work "Implement OAuth flow"
 
 # 3. Agent updates related tasks
-denote-tasks batch-update --where "content:auth AND status:open" --project <new-project-id>
+atask batch-update --where "content:auth AND status:open" --project <new-project-id>
 
 # 4. Agent generates status report
-denote-tasks query "(priority:p1 OR due:overdue) AND NOT status:done" --json
+atask query "(priority:p1 OR due:overdue) AND NOT status:done" --json
 ```
 
 ---
@@ -1019,31 +1019,31 @@ denote-tasks query "(priority:p1 OR due:overdue) AND NOT status:done" --json
 
 ```bash
 # Find tasks by criteria
-denote-tasks query "status:open AND priority:p1" --json
+atask query "status:open AND priority:p1" --json
 
 # Search by content/keywords
-denote-tasks list --search "authentication" --json
+atask list --search "authentication" --json
 
 # Get all open work tasks
-denote-tasks query "area:work AND status:open" --json
+atask query "area:work AND status:open" --json
 
 # Find overdue or high-priority tasks
-denote-tasks query "(due:overdue OR priority:p1) AND NOT status:done" --json
+atask query "(due:overdue OR priority:p1) AND NOT status:done" --json
 
 # Update multiple tasks at once
-denote-tasks batch-update --where "tag:sprint-42" --status done --dry-run
+atask batch-update --where "tag:sprint-42" --status done --dry-run
 
 # Get task count by status
-denote-tasks list --all --json | jq 'group_by(.status) | map({status: .[0].status, count: length})'
+atask list --all --json | jq 'group_by(.status) | map({status: .[0].status, count: length})'
 
 # Extract just task IDs
-denote-tasks query "status:open" --json | jq '.[] | .index_id'
+atask query "status:open" --json | jq '.[] | .index_id'
 
 # Find tasks without a project
-denote-tasks query "project_id:empty" --json
+atask query "project_id:empty" --json
 
 # Full-text search in specific area
-denote-tasks query "area:work AND content:blocker" --json
+atask query "area:work AND content:blocker" --json
 ```
 
 ---

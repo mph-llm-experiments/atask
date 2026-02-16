@@ -10,16 +10,16 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/pdxmph/denote-tasks/internal/config"
-	"github.com/pdxmph/denote-tasks/internal/denote"
-	"github.com/pdxmph/denote-tasks/internal/task"
+	"github.com/pdxmph/atask/internal/config"
+	"github.com/pdxmph/atask/internal/denote"
+	"github.com/pdxmph/atask/internal/task"
 )
 
 // ProjectCommand creates the project command with all subcommands
 func ProjectCommand(cfg *config.Config) *Command {
 	cmd := &Command{
 		Name:        "project",
-		Usage:       "denote-tasks project <command> [options]",
+		Usage:       "atask project <command> [options]",
 		Description: "Manage projects",
 	}
 
@@ -45,7 +45,7 @@ func projectNewCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "new",
-		Usage:       "denote-tasks project new <title> [options]",
+		Usage:       "atask project new <title> [options]",
 		Description: "Create a new project",
 		Flags:       flag.NewFlagSet("project-new", flag.ExitOnError),
 	}
@@ -143,7 +143,7 @@ func projectListCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "list",
-		Usage:       "denote-tasks project list [options]",
+		Usage:       "atask project list [options]",
 		Description: "List projects",
 		Flags:       flag.NewFlagSet("project-list", flag.ExitOnError),
 	}
@@ -376,7 +376,7 @@ func projectTasksCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "tasks",
-		Usage:       "denote-tasks project tasks <project-id> [options]",
+		Usage:       "atask project tasks <project-id> [options]",
 		Description: "Show tasks for a specific project",
 		Flags:       flag.NewFlagSet("project-tasks", flag.ExitOnError),
 	}
@@ -570,7 +570,7 @@ func projectUpdateCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "update",
-		Usage:       "denote-tasks project update [options] <project-ids>",
+		Usage:       "atask project update [options] <project-ids>",
 		Description: "Update project metadata",
 		Flags:       flag.NewFlagSet("project-update", flag.ExitOnError),
 	}

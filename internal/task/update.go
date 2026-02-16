@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pdxmph/denote-tasks/internal/denote"
+	"github.com/pdxmph/atask/internal/denote"
 )
 
 // UpdateTaskFile updates the task metadata in a file

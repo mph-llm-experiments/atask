@@ -1,5 +1,5 @@
 #!/bin/bash
-# Bash completion for denote-tasks
+# Bash completion for atask
 
 _denote_tasks_completions() {
     local cur prev words cword
@@ -279,4 +279,4 @@ _denote_tasks_completions() {
     esac
 }
 
-complete -F _denote_tasks_completions denote-tasks
+complete -F _denote_tasks_completions atask

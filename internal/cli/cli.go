@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pdxmph/denote-tasks/internal/config"
-	"github.com/pdxmph/denote-tasks/internal/tui"
+	"github.com/pdxmph/atask/internal/config"
+	"github.com/pdxmph/atask/internal/tui"
 )
 
 // Run executes the CLI with task-focused command structure
@@ -42,8 +42,8 @@ func Run(cfg *config.Config, args []string) error {
 
 	// Create root command
 	root := &Command{
-		Name:  "denote-tasks",
-		Usage: "denote-tasks <command> [options]",
+		Name:  "atask",
+		Usage: "atask <command> [options]",
 		Description: `A focused task management tool using Denote file naming convention.
 
 Task Commands (implicit):

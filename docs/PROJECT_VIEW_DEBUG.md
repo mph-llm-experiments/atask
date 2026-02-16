@@ -2,7 +2,7 @@
 
 ## Test Scenario
 
-1. Start the TUI: `./denote-tasks --config test-config.toml --tui`
+1. Start the TUI: `./atask --config test-config.toml --tui`
 2. Press `t` to switch to Task Mode
 3. Press `p` to show projects only
 4. Navigate to a project and press Enter to open it

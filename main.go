@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pdxmph/denote-tasks/internal/cli"
-	"github.com/pdxmph/denote-tasks/internal/config"
+	"github.com/pdxmph/atask/internal/cli"
+	"github.com/pdxmph/atask/internal/config"
 )
 
 var version = "0.17.3"
@@ -15,7 +15,7 @@ func main() {
 	// Check for version flag early
 	for _, arg := range os.Args[1:] {
 		if arg == "--version" || arg == "-version" {
-			fmt.Printf("denote-tasks v%s (spec v%s)\n", version, specVersion)
+			fmt.Printf("atask v%s (spec v%s)\n", version, specVersion)
 			os.Exit(0)
 		}
 	}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/pdxmph/denote-tasks/internal/config"
+	"github.com/pdxmph/atask/internal/config"
 )
 
 // Run starts the TUI application with optional filters

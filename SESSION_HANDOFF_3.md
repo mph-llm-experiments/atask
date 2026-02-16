@@ -1,4 +1,4 @@
-# Session Handoff - denote-tasks TUI Implementation
+# Session Handoff - atask TUI Implementation
 
 ## Session Summary (2025-01-13)
 

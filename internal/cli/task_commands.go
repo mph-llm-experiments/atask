@@ -10,17 +10,17 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/pdxmph/denote-tasks/internal/config"
-	"github.com/pdxmph/denote-tasks/internal/denote"
-	"github.com/pdxmph/denote-tasks/internal/query"
-	"github.com/pdxmph/denote-tasks/internal/task"
+	"github.com/pdxmph/atask/internal/config"
+	"github.com/pdxmph/atask/internal/denote"
+	"github.com/pdxmph/atask/internal/query"
+	"github.com/pdxmph/atask/internal/task"
 )
 
 // TaskCommand creates the task command with all subcommands
 func TaskCommand(cfg *config.Config) *Command {
 	cmd := &Command{
 		Name:        "task",
-		Usage:       "denote-tasks task <command> [options]",
+		Usage:       "atask task <command> [options]",
 		Description: "Manage tasks",
 	}
 
@@ -52,7 +52,7 @@ func taskNewCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "new",
-		Usage:       "denote-tasks task new <title> [options]",
+		Usage:       "atask task new <title> [options]",
 		Description: "Create a new task",
 		Flags:       flag.NewFlagSet("task-new", flag.ExitOnError),
 	}
@@ -159,7 +159,7 @@ func taskListCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "list",
-		Usage:       "denote-tasks task list [options]",
+		Usage:       "atask task list [options]",
 		Description: "List tasks",
 		Flags:       flag.NewFlagSet("task-list", flag.ExitOnError),
 	}
@@ -537,7 +537,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "update",
-		Usage:       "denote-tasks task update [options] <task-ids>",
+		Usage:       "atask task update [options] <task-ids>",
 		Description: "Update task metadata",
 		Flags:       flag.NewFlagSet("task-update", flag.ExitOnError),
 	}
@@ -647,7 +647,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 func taskDoneCommand(cfg *config.Config) *Command {
 	cmd := &Command{
 		Name:        "done",
-		Usage:       "denote-tasks task done <task-ids>",
+		Usage:       "atask task done <task-ids>",
 		Description: "Mark tasks as done",
 	}
 
@@ -715,7 +715,7 @@ func taskDoneCommand(cfg *config.Config) *Command {
 func taskLogCommand(cfg *config.Config) *Command {
 	cmd := &Command{
 		Name:        "log",
-		Usage:       "denote-tasks task log <task-id> <message>",
+		Usage:       "atask task log <task-id> <message>",
 		Description: "Add a timestamped log entry to a task",
 	}
 
@@ -772,7 +772,7 @@ func taskLogCommand(cfg *config.Config) *Command {
 func taskEditCommand(cfg *config.Config) *Command {
 	return &Command{
 		Name:        "edit",
-		Usage:       "denote-tasks task edit <task-id>",
+		Usage:       "atask task edit <task-id>",
 		Description: "Edit task in external editor or TUI",
 		Run: func(c *Command, args []string) error {
 			return fmt.Errorf("not yet implemented")
@@ -783,7 +783,7 @@ func taskEditCommand(cfg *config.Config) *Command {
 func taskDeleteCommand(cfg *config.Config) *Command {
 	return &Command{
 		Name:        "delete",
-		Usage:       "denote-tasks task delete <task-ids>",
+		Usage:       "atask task delete <task-ids>",
 		Description: "Delete tasks (with confirmation)",
 		Run: func(c *Command, args []string) error {
 			return fmt.Errorf("not yet implemented")
@@ -798,7 +798,7 @@ func taskQueryCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "query",
-		Usage:       "denote-tasks query <expression> [options]",
+		Usage:       "atask query <expression> [options]",
 		Description: "Query tasks with complex filter expressions",
 		Flags:       flag.NewFlagSet("task-query", flag.ExitOnError),
 	}
@@ -809,7 +809,7 @@ func taskQueryCommand(cfg *config.Config) *Command {
 
 	cmd.Run = func(c *Command, args []string) error {
 		if len(args) == 0 {
-			return fmt.Errorf("query expression required\n\nExamples:\n  denote-tasks query \"status:open AND priority:p1\"\n  denote-tasks query \"area:work AND (priority:p1 OR priority:p2)\"\n  denote-tasks query \"due:soon AND NOT status:done\"")
+			return fmt.Errorf("query expression required\n\nExamples:\n  atask query \"status:open AND priority:p1\"\n  atask query \"area:work AND (priority:p1 OR priority:p2)\"\n  atask query \"due:soon AND NOT status:done\"")
 		}
 
 		// Query is the first argument (should be quoted if it contains spaces)
@@ -994,7 +994,7 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 
 	cmd := &Command{
 		Name:        "batch-update",
-		Usage:       "denote-tasks batch-update --where <query> --set <field=value> [options]",
+		Usage:       "atask batch-update --where <query> --set <field=value> [options]",
 		Description: "Update multiple tasks based on query conditions",
 		Flags:       flag.NewFlagSet("task-batch-update", flag.ExitOnError),
 	}
@@ -1010,7 +1010,7 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 
 	cmd.Run = func(c *Command, args []string) error {
 		if whereClause == "" {
-			return fmt.Errorf("--where clause required\n\nExample:\n  denote-tasks batch-update --where \"status:open AND due:past\" --status paused")
+			return fmt.Errorf("--where clause required\n\nExample:\n  atask batch-update --where \"status:open AND due:past\" --status paused")
 		}
 
 		// Check that at least one field to update is specified

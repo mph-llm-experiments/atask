@@ -1,5 +1,5 @@
 _notes-tui-source/
-/denote-tasks
+/atask
 *.exe
 *.test
 *.out

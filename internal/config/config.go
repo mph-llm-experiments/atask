@@ -173,15 +173,15 @@ func (c *Config) Validate() error {
 func findConfigFile() string {
 	// Check XDG_CONFIG_HOME first
 	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-		path := filepath.Join(xdgConfig, "denote-tasks", "config.toml")
+		path := filepath.Join(xdgConfig, "atask", "config.toml")
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}
 	}
 
-	// Check ~/.config/denote-tasks/config.toml
+	// Check ~/.config/atask/config.toml
 	if homeDir, err := os.UserHomeDir(); err == nil {
-		path := filepath.Join(homeDir, ".config", "denote-tasks", "config.toml")
+		path := filepath.Join(homeDir, ".config", "atask", "config.toml")
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}
@@ -210,7 +210,7 @@ func expandHome(path string) string {
 // ConfigPath returns the default config file path
 func ConfigPath() string {
 	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-		return filepath.Join(xdgConfig, "denote-tasks", "config.toml")
+		return filepath.Join(xdgConfig, "atask", "config.toml")
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -218,5 +218,5 @@ func ConfigPath() string {
 		return ""
 	}
 
-	return filepath.Join(homeDir, ".config", "denote-tasks", "config.toml")
+	return filepath.Join(homeDir, ".config", "atask", "config.toml")
 }

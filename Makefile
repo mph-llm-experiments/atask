@@ -1,7 +1,7 @@
 .PHONY: build test clean
 
 VERSION := 0.1.0
-BINARY := denote-tasks
+BINARY := atask
 
 build:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY) .

@@ -40,7 +40,7 @@ Implemented "tag for today" feature for morning time-blocking workflow and fixed
 - CLI and TUI usage examples
 - Agent workflow examples (morning planning, follow-up, cleanup)
 - Query language reference
-- Installed globally in ~/.claude/skills/denote-tasks/
+- Installed globally in ~/.claude/skills/atask/
 
 ### Technical Details
 
@@ -51,7 +51,7 @@ Implemented "tag for today" feature for morning time-blocking workflow and fixed
 - `internal/tui/model.go` - Fixed sortFiles() to properly handle tasks vs projects
 - `internal/tui/views.go` - Added ★ indicator, separator line, fixed alignment by padding before coloring
 - `internal/tui/keys.go` - Added 'y' and 'Y' handlers, handleConfirmClearTodayKeys()
-- `~/.claude/skills/denote-tasks/SKILL.md` - Added comprehensive today feature documentation
+- `~/.claude/skills/atask/SKILL.md` - Added comprehensive today feature documentation
 
 **Alignment Fix Details:**
 - Changed from: `lipgloss.Style.Width().Render()` + `fmt.Sprintf("%*s")` mixing
@@ -81,7 +81,7 @@ All features tested and verified:
 
 ### Summary
 
-Implemented comprehensive AI agent integration capabilities, making denote-tasks a powerful tool for programmatic task management. Released as v0.17.0 with three subsequent patch releases.
+Implemented comprehensive AI agent integration capabilities, making atask a powerful tool for programmatic task management. Released as v0.17.0 with three subsequent patch releases.
 
 ### Major Features Implemented ✅
 

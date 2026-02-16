@@ -1,10 +1,10 @@
-# CLAUDE.md - Project Context for denote-tasks
+# CLAUDE.md - Project Context for atask
 
-This file contains important context about the denote-tasks project to help AI assistants understand the codebase, architecture decisions, and current state.
+This file contains important context about the atask project to help AI assistants understand the codebase, architecture decisions, and current state.
 
 ## Project Overview
 
-**denote-tasks** is a focused task management tool built on the Denote file naming convention. It uses Denote format for consistent file identification and backward compatibility while providing powerful task and project management features.
+**atask** is a focused task management tool built on the Denote file naming convention. It uses Denote format for consistent file identification and backward compatibility while providing powerful task and project management features.
 
 ### Current Status (2026-02-15)
 
@@ -108,8 +108,8 @@ When implementing TUI features, provide:
 ## Code Organization
 
 ```
-denote-tasks/
-├── cmd/denote-tasks/     # Main entry point
+atask/
+├── cmd/atask/     # Main entry point
 ├── internal/
 │   ├── cli/              # CLI implementation (task/project commands)
 │   ├── config/           # Configuration
@@ -142,21 +142,21 @@ This is NOT a fork of notes-tui. Key differences:
 
 ```bash
 # Build
-go build ./cmd/denote-tasks
+go build ./cmd/atask
 
 # Test with provided config
-./denote-tasks --config test-config.toml --tui
+./atask --config test-config.toml --tui
 
 # Create test task environment
-mkdir ~/denote-tasks-test
+mkdir ~/atask-test
 # Add task files: *__task*.md
 # Add project files: *__project*.md
 # Update test-config.toml
 
 # Test task operations
-./denote-tasks task list
-./denote-tasks task new "Test task" --priority p1
-./denote-tasks project list
+./atask task list
+./atask task new "Test task" --priority p1
+./atask project list
 ```
 
 ## Common Pitfalls to Avoid

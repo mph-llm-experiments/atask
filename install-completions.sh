@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install shell completions for denote-tasks
+# Install shell completions for atask
 
 set -e
 
@@ -55,8 +55,8 @@ install_bash_completions() {
     # Try to find a suitable directory
     for dir in "${completion_dirs[@]}"; do
         if [ -d "$dir" ] || mkdir -p "$dir" 2>/dev/null; then
-            if cp "$COMPLETIONS_DIR/denote-tasks.bash" "$dir/denote-tasks" 2>/dev/null; then
-                echo "Installed to $dir/denote-tasks"
+            if cp "$COMPLETIONS_DIR/atask.bash" "$dir/atask" 2>/dev/null; then
+                echo "Installed to $dir/atask"
                 installed=true
                 break
             fi
@@ -66,11 +66,11 @@ install_bash_completions() {
     if [ "$installed" = false ]; then
         # Fallback: add to user's bashrc
         local bashrc="$HOME/.bashrc"
-        local completion_file="$COMPLETIONS_DIR/denote-tasks.bash"
+        local completion_file="$COMPLETIONS_DIR/atask.bash"
         
         echo "Could not install to system directories. Adding to $bashrc"
         echo "" >> "$bashrc"
-        echo "# denote-tasks completion" >> "$bashrc"
+        echo "# atask completion" >> "$bashrc"
         echo "[ -f $completion_file ] && source $completion_file" >> "$bashrc"
         echo "Added completion source to $bashrc"
     fi
@@ -93,7 +93,7 @@ install_zsh_completions() {
     
     # Add custom fpath directories if Oh My Zsh is installed
     if [ -d "$HOME/.oh-my-zsh" ]; then
-        completion_dirs+=("$HOME/.oh-my-zsh/custom/plugins/denote-tasks")
+        completion_dirs+=("$HOME/.oh-my-zsh/custom/plugins/atask")
         completion_dirs+=("$HOME/.oh-my-zsh/completions")
     fi
     
@@ -102,8 +102,8 @@ install_zsh_completions() {
     # Try to find a suitable directory
     for dir in "${completion_dirs[@]}"; do
         if [ -d "$dir" ] || mkdir -p "$dir" 2>/dev/null; then
-            if cp "$COMPLETIONS_DIR/_denote-tasks" "$dir/_denote-tasks" 2>/dev/null; then
-                echo "Installed to $dir/_denote-tasks"
+            if cp "$COMPLETIONS_DIR/_atask" "$dir/_atask" 2>/dev/null; then
+                echo "Installed to $dir/_atask"
                 installed=true
                 break
             fi
@@ -114,15 +114,15 @@ install_zsh_completions() {
         # Fallback: create directory and update fpath
         local zsh_completions="$HOME/.zsh/completions"
         mkdir -p "$zsh_completions"
-        cp "$COMPLETIONS_DIR/_denote-tasks" "$zsh_completions/_denote-tasks"
+        cp "$COMPLETIONS_DIR/_atask" "$zsh_completions/_atask"
         
         local zshrc="$HOME/.zshrc"
         echo "" >> "$zshrc"
-        echo "# denote-tasks completion" >> "$zshrc"
+        echo "# atask completion" >> "$zshrc"
         echo "fpath=($zsh_completions \$fpath)" >> "$zshrc"
         echo "autoload -Uz compinit && compinit" >> "$zshrc"
         
-        echo "Installed to $zsh_completions/_denote-tasks"
+        echo "Installed to $zsh_completions/_atask"
         echo "Updated fpath in $zshrc"
     fi
     

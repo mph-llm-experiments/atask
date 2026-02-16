@@ -4,10 +4,10 @@ echo "Project View Debug Script"
 echo "========================"
 echo
 
-# Check if denote-tasks binary exists
-if [ ! -f "./denote-tasks" ]; then
-    echo "Building denote-tasks..."
-    go build ./cmd/denote-tasks
+# Check if atask binary exists
+if [ ! -f "./atask" ]; then
+    echo "Building atask..."
+    go build ./cmd/atask
 fi
 
 # Create test project
@@ -35,7 +35,7 @@ EOF
 echo "Test project created."
 echo
 echo "To debug:"
-echo "1. Run: ./denote-tasks --config test-config.toml --tui"
+echo "1. Run: ./atask --config test-config.toml --tui"
 echo "2. Press 't' for Task Mode"
 echo "3. Press 'p' for projects only"
 echo "4. Open 'Debug Project'"

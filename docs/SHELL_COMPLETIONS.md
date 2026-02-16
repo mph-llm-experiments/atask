@@ -1,6 +1,6 @@
 # Shell Completions
 
-denote-tasks includes comprehensive shell completion support for both bash and zsh.
+atask includes comprehensive shell completion support for both bash and zsh.
 
 ## Installation
 
@@ -19,24 +19,24 @@ This will detect your shell and install completions to the appropriate location.
 #### Bash
 
 Copy the completion file to one of these locations:
-- `/usr/local/etc/bash_completion.d/denote-tasks`
-- `/etc/bash_completion.d/denote-tasks`
-- `~/.local/share/bash-completion/completions/denote-tasks`
+- `/usr/local/etc/bash_completion.d/atask`
+- `/etc/bash_completion.d/atask`
+- `~/.local/share/bash-completion/completions/atask`
 
 Or source it in your `.bashrc`:
 ```bash
-source /path/to/denote-tasks/completions/denote-tasks.bash
+source /path/to/atask/completions/atask.bash
 ```
 
 #### Zsh
 
 Copy the completion file to a directory in your `fpath`:
-- `/usr/local/share/zsh/site-functions/_denote-tasks`
-- `~/.zsh/completions/_denote-tasks`
+- `/usr/local/share/zsh/site-functions/_atask`
+- `~/.zsh/completions/_atask`
 
 Or add the completions directory to your `fpath` in `.zshrc`:
 ```bash
-fpath=(~/path/to/denote-tasks/completions $fpath)
+fpath=(~/path/to/atask/completions $fpath)
 autoload -Uz compinit && compinit
 ```
 
@@ -65,27 +65,27 @@ autoload -Uz compinit && compinit
 
 ```bash
 # Complete commands
-denote-tasks <TAB>
+atask <TAB>
 # Shows: task project note --tui --help --version
 
 # Complete task subcommands
-denote-tasks task <TAB>
+atask task <TAB>
 # Shows: new list update done edit delete log
 
 # Complete task IDs for done command
-denote-tasks task done <TAB>
+atask task done <TAB>
 # Shows: 1 2 3 5 8 13 (actual task IDs)
 
 # Complete priority values
-denote-tasks task new "Fix bug" -p <TAB>
+atask task new "Fix bug" -p <TAB>
 # Shows: p1 p2 p3
 
 # Complete areas
-denote-tasks task list -area <TAB>
+atask task list -area <TAB>
 # Shows: work personal hobby (from your existing tasks)
 
 # Complete due date shortcuts
-denote-tasks task new "Meeting" -due <TAB>
+atask task new "Meeting" -due <TAB>
 # Shows: today tomorrow monday tuesday wednesday...
 ```
 
@@ -105,16 +105,16 @@ The completion system uses a special `completion` command to get dynamic data:
 
 ```bash
 # Get all task IDs
-denote-tasks completion task-ids
+atask completion task-ids
 
 # Get all project IDs with names
-denote-tasks completion project-ids
+atask completion project-ids
 
 # Get all areas
-denote-tasks completion areas
+atask completion areas
 
 # Get all tags
-denote-tasks completion tags
+atask completion tags
 ```
 
 This ensures completions always reflect your current data.
@@ -126,7 +126,7 @@ This ensures completions always reflect your current data.
 1. **Reload your shell**: `source ~/.bashrc` or `source ~/.zshrc`
 2. **Clear zsh cache**: `rm -f ~/.zcompdump && compinit`
 3. **Check installation**: Verify the completion file is in the right location
-4. **Test manually**: Try running `denote-tasks completion task-ids` to ensure it works
+4. **Test manually**: Try running `atask completion task-ids` to ensure it works
 
 ### Performance
 

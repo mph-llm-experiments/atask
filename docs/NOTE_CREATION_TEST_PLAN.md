@@ -1,6 +1,6 @@
 # DEPRECATED: Note Creation Test Plan
 
-**Note: This feature has been removed. denote-tasks is now focused exclusively on task management.**
+**Note: This feature has been removed. atask is now focused exclusively on task management.**
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### Setup
 ```bash
-./denote-tasks --config test-config.toml --tui
+./atask --config test-config.toml --tui
 ```
 
 ### Test Steps

@@ -13,79 +13,79 @@ Replace the current basic CLI with a comprehensive entity-first command structur
 
 ```bash
 # Launch TUI directly
-denote-tasks --tui
-denote-tasks -t
+atask --tui
+atask -t
 
 # Entity-based commands
-denote-tasks task ...
-denote-tasks project ...
-denote-tasks note ...
+atask task ...
+atask project ...
+atask note ...
 ```
 
 ### Task Commands
 
 ```bash
 # Create new task
-denote-tasks task new "Fix login bug" -p p1 -due tomorrow -area work
+atask task new "Fix login bug" -p p1 -due tomorrow -area work
 
 # List tasks (CLI output)
-denote-tasks task list
-denote-tasks task list -p1 -overdue -area work
+atask task list
+atask task list -p1 -overdue -area work
 
 # Launch TUI with filters
-denote-tasks task list -tui                    # TUI in task mode
-denote-tasks task list -tui -p1 -area work    # TUI with filters applied
-denote-tasks task list -tui -project webapp    # TUI filtered to project
+atask task list -tui                    # TUI in task mode
+atask task list -tui -p1 -area work    # TUI with filters applied
+atask task list -tui -project webapp    # TUI filtered to project
 
 # Update tasks
-denote-tasks task update 3 -status done
-denote-tasks task update 3-5 -p p2
-denote-tasks task update 3,5,7 -project newproject
+atask task update 3 -status done
+atask task update 3-5 -p p2
+atask task update 3,5,7 -project newproject
 
 # Quick actions
-denote-tasks task done 3-5
-denote-tasks task log 3 "Started working on this"
-denote-tasks task edit 3        # Opens in external editor
-denote-tasks task edit 3 -tui   # Opens in TUI task view
+atask task done 3-5
+atask task log 3 "Started working on this"
+atask task edit 3        # Opens in external editor
+atask task edit 3 -tui   # Opens in TUI task view
 
 # Delete tasks
-denote-tasks task delete 3,5
+atask task delete 3,5
 ```
 
 ### Project Commands
 
 ```bash
 # Create project
-denote-tasks project new "Website Redesign" -area work -p p1
+atask project new "Website Redesign" -area work -p p1
 
 # List projects
-denote-tasks project list
-denote-tasks project list -tui              # TUI in project filter mode
-denote-tasks project list -tui -area work   # TUI with area filter
+atask project list
+atask project list -tui              # TUI in project filter mode
+atask project list -tui -area work   # TUI with area filter
 
 # View project
-denote-tasks project show "Website Redesign"
-denote-tasks project tasks 1                 # List tasks for project
-denote-tasks project view 1 -tui            # Open project in TUI
+atask project show "Website Redesign"
+atask project tasks 1                 # List tasks for project
+atask project view 1 -tui            # Open project in TUI
 
 # Update project
-denote-tasks project update 1 -status completed
+atask project update 1 -status completed
 ```
 
 ### Note Commands
 
 ```bash
 # Create note
-denote-tasks note new "Meeting Notes" -tags "meeting,q1"
+atask note new "Meeting Notes" -tags "meeting,q1"
 
 # List notes
-denote-tasks note list
-denote-tasks note list -tui                 # TUI in notes mode
-denote-tasks note list -tag daily -tui      # TUI with tag filter
+atask note list
+atask note list -tui                 # TUI in notes mode
+atask note list -tag daily -tui      # TUI with tag filter
 
 # Edit note
-denote-tasks note edit 3
-denote-tasks note edit 3 -tui              # Open in TUI preview
+atask note edit 3
+atask note edit 3 -tui              # Open in TUI preview
 ```
 
 ### Global Flags
@@ -140,18 +140,18 @@ denote-tasks note edit 3 -tui              # Open in TUI preview
 
 ```bash
 # Morning review - CLI
-denote-tasks task list -due today -area work
+atask task list -due today -area work
 
 # Morning review - TUI
-denote-tasks task list -due today -area work -tui
+atask task list -due today -area work -tui
 
 # Project dashboard - CLI
-denote-tasks project tasks "webapp" -status open
+atask project tasks "webapp" -status open
 
 # Project dashboard - TUI  
-denote-tasks project view "webapp" -tui
+atask project view "webapp" -tui
 
 # Quick task entry then review
-denote-tasks task new "Call client" -p p1 -due today
-denote-tasks task list -due today -tui
+atask task new "Call client" -p p1 -due today
+atask task list -due today -tui
 ```

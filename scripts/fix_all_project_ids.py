@@ -17,7 +17,7 @@ for i, project_file in enumerate(project_files):
     old_filename = os.path.basename(project_file)
     old_timestamp = old_filename.split('--')[0]
     
-    # Skip if it's already unique (like denote-tasks project)
+    # Skip if it's already unique (like atask project)
     if old_timestamp == "20250113T152000":
         continue
     

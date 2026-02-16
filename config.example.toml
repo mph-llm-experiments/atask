@@ -1,5 +1,5 @@
-# Example configuration for denote-tasks
-# Copy this to ~/.config/denote-tasks/config.toml and modify as needed
+# Example configuration for atask
+# Copy this to ~/.config/atask/config.toml and modify as needed
 
 # Required: Path to your task directory
 # This is where your task and project files live

@@ -1,11 +1,11 @@
-# Project Charter: denote-tasks
+# Project Charter: atask
 
 Version: 2.0.0  
 Date: 2025-01-14
 
 ## Project Vision
 
-**denote-tasks** is a focused task management tool that uses the Denote file naming convention for consistent, unique identifiers. It provides powerful task and project management features through a clean, simple interface.
+**atask** is a focused task management tool that uses the Denote file naming convention for consistent, unique identifiers. It provides powerful task and project management features through a clean, simple interface.
 
 ### Core Philosophy
 
@@ -55,8 +55,8 @@ Date: 2025-01-14
   - View all tasks in a project
 
 - **Interfaces**
-  - CLI: `denote-tasks task new "Fix bug"`
-  - TUI: `denote-tasks --tui`
+  - CLI: `atask task new "Fix bug"`
+  - TUI: `atask --tui`
   - Consistent filtering and sorting
 
 - **Organization**
@@ -78,9 +78,9 @@ Date: 2025-01-14
 ## Technical Architecture
 
 ```
-denote-tasks/
+atask/
 ├── cmd/
-│   └── denote-tasks/
+│   └── atask/
 │       └── main.go          # Entry point
 ├── internal/
 │   ├── denote/              # Denote format operations
@@ -155,7 +155,7 @@ Improve search functionality across the application.
 
 ## Key Differences from Legacy Tools
 
-| Feature | notes-cli/tui | denote-tasks |
+| Feature | notes-cli/tui | atask |
 |---------|---------------|--------------|
 | Purpose | Notes + Tasks | Tasks only |
 | File types | All markdown | Task/Project files only |
@@ -193,7 +193,7 @@ Improve search functionality across the application.
 
 ## Configuration
 
-Minimal configuration in `~/.config/denote-tasks/config.toml`:
+Minimal configuration in `~/.config/atask/config.toml`:
 
 ```toml
 # Required
@@ -274,22 +274,22 @@ But always maintaining task focus.
 
 ```bash
 # Create new task
-denote-tasks task new "Write documentation" --priority p1
+atask task new "Write documentation" --priority p1
 
 # List all open tasks
-denote-tasks task list
+atask task list
 
 # List tasks for a project
-denote-tasks project tasks <project-id>
+atask project tasks <project-id>
 
 # Interactive mode
-denote-tasks --tui
+atask --tui
 
 # Mark task as done
-denote-tasks task done 123
+atask task done 123
 
 # Create a project
-denote-tasks project new "Q1 Goals"
+atask project new "Q1 Goals"
 ```
 
 ## License
@@ -298,4 +298,4 @@ MIT License - Keep it simple and open.
 
 ## Summary
 
-denote-tasks is a focused task management tool that leverages Denote's excellent file naming convention for stable, unique identifiers. By constraining ourselves to task management only, we achieve clarity of purpose, a simpler codebase, and an intuitive user experience. This is not a general-purpose note manager—it's a tool designed to do one thing exceptionally well: help you manage your tasks and projects.
+atask is a focused task management tool that leverages Denote's excellent file naming convention for stable, unique identifiers. By constraining ourselves to task management only, we achieve clarity of purpose, a simpler codebase, and an intuitive user experience. This is not a general-purpose note manager—it's a tool designed to do one thing exceptionally well: help you manage your tasks and projects.

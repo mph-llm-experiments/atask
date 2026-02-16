@@ -1,4 +1,4 @@
-# Unified Architecture: denote-tasks
+# Unified Architecture: atask
 
 Version: 2.0.0  
 Date: 2025-01-14
@@ -14,7 +14,7 @@ A focused task management tool with CLI and TUI interfaces, sharing the same und
 ## Architecture Overview
 
 ```
-denote-tasks
+atask
 ├── cmd/
 │   ├── notes/
 │   │   ├── main.go           # Entry point, mode detection
@@ -275,7 +275,7 @@ notes --tui --search "database" --status open
 
 ## Open Questions
 
-1. **Binary name**: `notes`, `denote-tasks`, something else?
+1. **Binary name**: `notes`, `atask`, something else?
 2. **Repository**: New unified repo or evolve one of the existing?
 3. **Versioning**: Start at 1.0.0 or continue from one tool's version?
 4. **Package structure**: Export public API for third-party tools?

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate demo fixture files for denote-tasks screenshots.
+Generate demo fixture files for atask screenshots.
 Creates a realistic mix of projects and tasks with various states.
 """
 

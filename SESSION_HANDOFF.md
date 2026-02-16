@@ -1,6 +1,6 @@
 # Session Handoff - Task Mode Implementation
 
-## Continue work on the denote-tasks project. Please read these files first:
+## Continue work on the atask project. Please read these files first:
 
 1. `CLAUDE.md` - Project-specific AI assistant guidelines
 2. `PROJECT_CHARTER.md` - Core principles and vision
@@ -49,8 +49,8 @@
 
 ### Testing:
 ```bash
-go build ./cmd/denote-tasks
-./denote-tasks --config test-config.toml --tui
+go build ./cmd/atask
+./atask --config test-config.toml --tui
 ```
 
 ### CRITICAL REMINDER:

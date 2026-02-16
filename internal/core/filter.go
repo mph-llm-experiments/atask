@@ -1,7 +1,7 @@
 package core
 
 import (
-	"github.com/pdxmph/denote-tasks/internal/denote"
+	"github.com/pdxmph/atask/internal/denote"
 )
 
 // FilterOptions represents options for filtering tasks

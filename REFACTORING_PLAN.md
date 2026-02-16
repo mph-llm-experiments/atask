@@ -1,8 +1,8 @@
-# Refactoring Plan: denote-tasks Focus on Task Management
+# Refactoring Plan: atask Focus on Task Management
 
 ## Executive Summary
 
-This document outlines the plan to refactor denote-tasks from a dual notes/tasks system to a focused task management tool. The project will maintain Denote format compatibility for backward compatibility and consistent file identification, but will remove all general notes functionality.
+This document outlines the plan to refactor atask from a dual notes/tasks system to a focused task management tool. The project will maintain Denote format compatibility for backward compatibility and consistent file identification, but will remove all general notes functionality.
 
 ## Current State Analysis
 
@@ -22,8 +22,8 @@ This document outlines the plan to refactor denote-tasks from a dual notes/tasks
 
 ### Simplified Architecture
 ```
-denote-tasks/
-├── cmd/denote-tasks/        # Entry point
+atask/
+├── cmd/atask/        # Entry point
 ├── internal/
 │   ├── cli/                 # CLI implementation (task-focused)
 │   ├── config/              # Configuration
@@ -84,21 +84,21 @@ type Model struct {
 #### Commands to Keep (Modified)
 ```bash
 # Task commands
-denote-tasks task new "Task title" [options]
-denote-tasks task list [filters]
-denote-tasks task update <id> [options]
-denote-tasks task done <id>
-denote-tasks task delete <id>
-denote-tasks task log <id> "message"
+atask task new "Task title" [options]
+atask task list [filters]
+atask task update <id> [options]
+atask task done <id>
+atask task delete <id>
+atask task log <id> "message"
 
 # Project commands  
-denote-tasks project new "Project title" [options]
-denote-tasks project list [filters]
-denote-tasks project tasks <project-id>
-denote-tasks project update <id> [options]
+atask project new "Project title" [options]
+atask project list [filters]
+atask project tasks <project-id>
+atask project update <id> [options]
 
 # Global options
-denote-tasks --tui  # Launch TUI in task mode
+atask --tui  # Launch TUI in task mode
 ```
 
 #### Commands to Remove
@@ -282,4 +282,4 @@ Project List:
 
 ---
 
-*This refactoring will transform denote-tasks from a dual-purpose tool into a focused, powerful task management system while maintaining the benefits of the Denote format.*
+*This refactoring will transform atask from a dual-purpose tool into a focused, powerful task management system while maintaining the benefits of the Denote format.*

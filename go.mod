@@ -1,4 +1,4 @@
-module github.com/pdxmph/denote-tasks
+module github.com/pdxmph/atask
 
 go 1.21
 

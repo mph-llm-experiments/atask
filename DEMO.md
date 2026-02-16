@@ -1,6 +1,6 @@
 # Denote Tasks Demo
 
-This directory contains demo fixtures for taking screenshots and demonstrating denote-tasks functionality.
+This directory contains demo fixtures for taking screenshots and demonstrating atask functionality.
 
 ## Quick Start
 
@@ -9,9 +9,9 @@ This directory contains demo fixtures for taking screenshots and demonstrating d
    python3 scripts/generate_demo_fixtures.py demo-notes
    ```
 
-2. Run denote-tasks with the demo configuration:
+2. Run atask with the demo configuration:
    ```bash
-   ./denote-tasks --config demo-config.toml --tui
+   ./atask --config demo-config.toml --tui
    ```
 
 ## Demo Data Overview
