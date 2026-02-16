@@ -29,6 +29,7 @@ func TaskCommand(cfg *config.Config) *Command {
 		taskListCommand(cfg),
 		taskQueryCommand(cfg),
 		taskUpdateCommand(cfg),
+		taskBatchUpdateCommand(cfg),
 		taskDoneCommand(cfg),
 		taskLogCommand(cfg),
 		taskEditCommand(cfg),
@@ -153,6 +154,7 @@ func taskListCommand(cfg *config.Config) *Command {
 		soon     bool
 		sortBy   string
 		reverse  bool
+		search   string
 	)
 
 	cmd := &Command{
@@ -170,6 +172,7 @@ func taskListCommand(cfg *config.Config) *Command {
 	cmd.Flags.StringVar(&project, "project", "", "Filter by project")
 	cmd.Flags.BoolVar(&overdue, "overdue", false, "Show only overdue tasks")
 	cmd.Flags.BoolVar(&soon, "soon", false, "Show tasks due soon")
+	cmd.Flags.StringVar(&search, "search", "", "Search in task content (full-text)")
 	cmd.Flags.StringVar(&sortBy, "sort", "modified", "Sort by: modified, priority, due, created")
 	cmd.Flags.BoolVar(&reverse, "reverse", false, "Reverse sort order")
 	
@@ -250,6 +253,12 @@ func taskListCommand(cfg *config.Config) *Command {
 				continue
 			}
 
+
+		if search != "" {
+			if !strings.Contains(strings.ToLower(t.Content), strings.ToLower(search)) {
+				continue
+			}
+		}
 			tasks = append(tasks, *t)
 		}
 
@@ -964,6 +973,165 @@ func taskQueryCommand(cfg *config.Config) *Command {
 			fmt.Println(line)
 		}
 
+		return nil
+	}
+
+	return cmd
+}
+
+// taskBatchUpdateCommand updates multiple tasks based on query conditions
+func taskBatchUpdateCommand(cfg *config.Config) *Command {
+	var (
+		whereClause string
+		priority    string
+		due         string
+		area        string
+		project     string
+		estimate    int
+		status      string
+		preview     bool
+	)
+
+	cmd := &Command{
+		Name:        "batch-update",
+		Usage:       "denote-tasks batch-update --where <query> --set <field=value> [options]",
+		Description: "Update multiple tasks based on query conditions",
+		Flags:       flag.NewFlagSet("task-batch-update", flag.ExitOnError),
+	}
+
+	cmd.Flags.StringVar(&whereClause, "where", "", "Query expression to filter tasks")
+	cmd.Flags.StringVar(&priority, "priority", "", "Set priority (p1, p2, p3)")
+	cmd.Flags.StringVar(&due, "due", "", "Set due date")
+	cmd.Flags.StringVar(&area, "area", "", "Set area")
+	cmd.Flags.StringVar(&project, "project", "", "Set project")
+	cmd.Flags.IntVar(&estimate, "estimate", -1, "Set time estimate")
+	cmd.Flags.StringVar(&status, "status", "", "Set status (open, done, paused, delegated, dropped)")
+	cmd.Flags.BoolVar(&preview, "preview", false, "Preview changes without applying them")
+
+	cmd.Run = func(c *Command, args []string) error {
+		if whereClause == "" {
+			return fmt.Errorf("--where clause required\n\nExample:\n  denote-tasks batch-update --where \"status:open AND due:past\" --status paused")
+		}
+
+		// Check that at least one field to update is specified
+		if priority == "" && due == "" && area == "" && project == "" && estimate == -1 && status == "" {
+			return fmt.Errorf("at least one field to update must be specified (--priority, --due, --area, --project, --estimate, or --status)")
+		}
+
+		// Parse the where clause
+		ast, err := query.Parse(whereClause)
+		if err != nil {
+			return fmt.Errorf("failed to parse --where clause: %v", err)
+		}
+
+		// Get all tasks
+		scanner := denote.NewScanner(cfg.NotesDirectory)
+		allTasks, err := scanner.FindTasks()
+		if err != nil {
+			return fmt.Errorf("failed to find tasks: %v", err)
+		}
+
+		// Filter tasks using the query
+		var matchingTasks []*denote.Task
+		for _, t := range allTasks {
+			if ast.Evaluate(t, cfg) {
+				matchingTasks = append(matchingTasks, t)
+			}
+		}
+
+		if len(matchingTasks) == 0 {
+			fmt.Println("No tasks match the query")
+			return nil
+		}
+
+		// Show what will be updated
+		fmt.Printf("Found %d matching task(s):\n\n", len(matchingTasks))
+		for _, t := range matchingTasks {
+			fmt.Printf("  %d: %s\n", t.TaskMetadata.IndexID, t.TaskMetadata.Title)
+		}
+		fmt.Println()
+
+		// Parse due date if provided
+		var parsedDue string
+		if due != "" {
+			parsedDue, err = denote.ParseNaturalDate(due)
+			if err != nil {
+				return fmt.Errorf("invalid due date: %v", err)
+			}
+		}
+
+		// Show what changes will be made
+		changes := []string{}
+		if priority != "" {
+			changes = append(changes, fmt.Sprintf("priority → %s", priority))
+		}
+		if due != "" {
+			changes = append(changes, fmt.Sprintf("due_date → %s", parsedDue))
+		}
+		if area != "" {
+			changes = append(changes, fmt.Sprintf("area → %s", area))
+		}
+		if project != "" {
+			changes = append(changes, fmt.Sprintf("project_id → %s", project))
+		}
+		if estimate >= 0 {
+			changes = append(changes, fmt.Sprintf("estimate → %d", estimate))
+		}
+		if status != "" {
+			changes = append(changes, fmt.Sprintf("status → %s", status))
+		}
+
+		fmt.Printf("Changes to apply:\n")
+		for _, change := range changes {
+			fmt.Printf("  • %s\n", change)
+		}
+		fmt.Println()
+
+		if preview {
+			fmt.Println("Preview mode: no changes applied")
+			return nil
+		}
+
+		// Apply updates
+		updated := 0
+		for _, t := range matchingTasks {
+			changed := false
+
+			if priority != "" {
+				t.TaskMetadata.Priority = priority
+				changed = true
+			}
+			if due != "" {
+				t.TaskMetadata.DueDate = parsedDue
+				changed = true
+			}
+			if area != "" {
+				t.TaskMetadata.Area = area
+				changed = true
+			}
+			if project != "" {
+				t.TaskMetadata.ProjectID = project
+				changed = true
+			}
+			if estimate >= 0 {
+				t.TaskMetadata.Estimate = estimate
+				changed = true
+			}
+			if status != "" {
+				t.TaskMetadata.Status = status
+				changed = true
+			}
+
+			if changed {
+				if err := task.UpdateTaskFile(t.File.Path, t.TaskMetadata); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to update task %d: %v\n", t.TaskMetadata.IndexID, err)
+					continue
+				}
+				updated++
+			}
+		}
+
+		fmt.Printf("✓ Updated %d task(s)\n", updated)
 		return nil
 	}
 

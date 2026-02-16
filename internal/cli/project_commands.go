@@ -138,6 +138,7 @@ func projectListCommand(cfg *config.Config) *Command {
 		priority string
 		sortBy   string
 		reverse  bool
+		search   string
 	)
 
 	cmd := &Command{
@@ -154,7 +155,8 @@ func projectListCommand(cfg *config.Config) *Command {
 	cmd.Flags.StringVar(&priority, "priority", "", "Filter by priority (p1, p2, p3)")
 	cmd.Flags.StringVar(&sortBy, "sort", "modified", "Sort by: modified, priority, due, created")
 	cmd.Flags.BoolVar(&reverse, "reverse", false, "Reverse sort order")
-	
+	cmd.Flags.StringVar(&search, "search", "", "Search in project content (full-text)")
+
 	// Convenience flags
 	cmd.Flags.BoolVar(&all, "a", false, "Show all projects (short)")
 	cmd.Flags.StringVar(&sortBy, "s", "modified", "Sort by (short)")
@@ -199,6 +201,13 @@ func projectListCommand(cfg *config.Config) *Command {
 				continue
 			}
 
+
+		// Content search
+		if search != "" {
+			if !strings.Contains(strings.ToLower(p.Content), strings.ToLower(search)) {
+				continue
+			}
+		}
 			filtered = append(filtered, p)
 		}
 

@@ -1087,6 +1087,35 @@ func (m *Model) updateCurrentTaskStatus(newStatus string) error {
 	return nil
 }
 
+// updateCurrentProjectStatus updates the status of the currently selected project
+func (m *Model) updateCurrentProjectStatus(newStatus string) error {
+	if m.cursor >= len(m.filtered) {
+		return fmt.Errorf("no project selected")
+	}
+
+	file := m.filtered[m.cursor]
+	if !file.IsProject() {
+		return fmt.Errorf("selected item is not a project")
+	}
+
+	// Read the project
+	project, err := denote.ParseProjectFile(file.Path)
+	if err != nil {
+		return fmt.Errorf("failed to read project: %v", err)
+	}
+
+	// Update the status
+	project.ProjectMetadata.Status = newStatus
+
+	// Write back
+	err = denote.UpdateProjectFile(file.Path, project.ProjectMetadata)
+	if err != nil {
+		return fmt.Errorf("failed to update project: %v", err)
+	}
+
+	return nil
+}
+
 // deleteFile deletes a file from the filesystem
 func (m *Model) deleteFile(path string) error {
 	return os.Remove(path)

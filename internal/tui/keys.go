@@ -485,14 +485,9 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = ModeFilterMenu
 		
 	case "s":
-		// State change menu - only for tasks, not projects
+		// State change menu - for tasks and projects
 		if len(m.filtered) > 0 && m.cursor < len(m.filtered) {
-			file := m.filtered[m.cursor]
-			if file.IsTask() {
-				m.mode = ModeStateMenu
-			} else {
-				m.statusMsg = "State change only available for tasks"
-			}
+			m.mode = ModeStateMenu
 		}
 		
 	case "S":
@@ -820,87 +815,149 @@ func (m Model) handleStateMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.projectViewTab == 1 && m.viewingProject != nil {
 		returnMode = ModeProjectView
 	}
-	
+
+	// Check if current item is a task or project
+	if m.cursor >= len(m.filtered) {
+		m.mode = returnMode
+		return m, nil
+	}
+
+	file := m.filtered[m.cursor]
+	isProject := file.IsProject()
+
 	switch msg.String() {
 	case "esc", "ctrl+c", "q":
 		m.mode = returnMode
-		
+
+	case "a":
+		// Active (projects only)
+		if isProject {
+			err := m.updateCurrentProjectStatus(denote.ProjectStatusActive)
+			if err != nil {
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+			} else {
+				m.statusMsg = "Project status changed to active"
+			}
+			m.mode = returnMode
+		}
+
+	case "c":
+		// Completed (projects only)
+		if isProject {
+			err := m.updateCurrentProjectStatus(denote.ProjectStatusCompleted)
+			if err != nil {
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+			} else {
+				m.statusMsg = "Project status changed to completed"
+			}
+			m.mode = returnMode
+		}
+
+	case "x":
+		// Cancelled (projects only)
+		if isProject {
+			err := m.updateCurrentProjectStatus(denote.ProjectStatusCancelled)
+			if err != nil {
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+			} else {
+				m.statusMsg = "Project status changed to cancelled"
+			}
+			m.mode = returnMode
+		}
+
 	case "o":
-		// Open
-		var err error
-		if returnMode == ModeProjectView {
-			err = m.updateProjectTaskStatus(denote.TaskStatusOpen)
-		} else {
-			err = m.updateCurrentTaskStatus(denote.TaskStatusOpen)
+		// Open (tasks only)
+		if !isProject {
+			var err error
+			if returnMode == ModeProjectView {
+				err = m.updateProjectTaskStatus(denote.TaskStatusOpen)
+			} else {
+				err = m.updateCurrentTaskStatus(denote.TaskStatusOpen)
+			}
+			if err != nil {
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+			} else {
+				m.statusMsg = "Task status changed to open"
+			}
+			m.mode = returnMode
 		}
-		if err != nil {
-			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
-		} else {
-			m.statusMsg = "Task status changed to open"
-		}
-		m.mode = returnMode
-		
+
 	case "p":
-		// Paused
+		// Paused (both tasks and projects)
 		var err error
-		if returnMode == ModeProjectView {
-			err = m.updateProjectTaskStatus(denote.TaskStatusPaused)
+		if isProject {
+			err = m.updateCurrentProjectStatus(denote.ProjectStatusPaused)
+			if err != nil {
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+			} else {
+				m.statusMsg = "Project status changed to paused"
+			}
 		} else {
-			err = m.updateCurrentTaskStatus(denote.TaskStatusPaused)
-		}
-		if err != nil {
-			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
-		} else {
-			m.statusMsg = "Task status changed to paused"
+			if returnMode == ModeProjectView {
+				err = m.updateProjectTaskStatus(denote.TaskStatusPaused)
+			} else {
+				err = m.updateCurrentTaskStatus(denote.TaskStatusPaused)
+			}
+			if err != nil {
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+			} else {
+				m.statusMsg = "Task status changed to paused"
+			}
 		}
 		m.mode = returnMode
-		
+
 	case "d":
-		// Done
-		var err error
-		if returnMode == ModeProjectView {
-			err = m.updateProjectTaskStatus(denote.TaskStatusDone)
-		} else {
-			err = m.updateCurrentTaskStatus(denote.TaskStatusDone)
+		// Done (tasks only)
+		if !isProject {
+			var err error
+			if returnMode == ModeProjectView {
+				err = m.updateProjectTaskStatus(denote.TaskStatusDone)
+			} else {
+				err = m.updateCurrentTaskStatus(denote.TaskStatusDone)
+			}
+			if err != nil {
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+			} else {
+				m.statusMsg = "Task status changed to done"
+			}
+			m.mode = returnMode
 		}
-		if err != nil {
-			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
-		} else {
-			m.statusMsg = "Task status changed to done"
-		}
-		m.mode = returnMode
-		
+
 	case "e":
-		// Delegated
-		var err error
-		if returnMode == ModeProjectView {
-			err = m.updateProjectTaskStatus(denote.TaskStatusDelegated)
-		} else {
-			err = m.updateCurrentTaskStatus(denote.TaskStatusDelegated)
+		// Delegated (tasks only)
+		if !isProject {
+			var err error
+			if returnMode == ModeProjectView {
+				err = m.updateProjectTaskStatus(denote.TaskStatusDelegated)
+			} else {
+				err = m.updateCurrentTaskStatus(denote.TaskStatusDelegated)
+			}
+			if err != nil {
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+			} else {
+				m.statusMsg = "Task status changed to delegated"
+			}
+			m.mode = returnMode
 		}
-		if err != nil {
-			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
-		} else {
-			m.statusMsg = "Task status changed to delegated"
-		}
-		m.mode = returnMode
-		
+
 	case "r":
-		// Dropped
-		var err error
-		if returnMode == ModeProjectView {
-			err = m.updateProjectTaskStatus(denote.TaskStatusDropped)
-		} else {
-			err = m.updateCurrentTaskStatus(denote.TaskStatusDropped)
+		// Dropped (tasks only)
+		if !isProject {
+			var err error
+			if returnMode == ModeProjectView {
+				err = m.updateProjectTaskStatus(denote.TaskStatusDropped)
+			} else {
+				err = m.updateCurrentTaskStatus(denote.TaskStatusDropped)
+			}
+			if err != nil {
+				m.statusMsg = fmt.Sprintf(ErrorFormat, err)
+			} else {
+				m.statusMsg = "Task status changed to dropped"
+			}
+			m.mode = returnMode
 		}
-		if err != nil {
-			m.statusMsg = fmt.Sprintf(ErrorFormat, err)
-		} else {
-			m.statusMsg = "Task status changed to dropped"
-		}
-		m.mode = returnMode
 	}
-	
+
 	return m, nil
 }
 

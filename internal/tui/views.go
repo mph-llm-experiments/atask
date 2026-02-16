@@ -641,7 +641,15 @@ func (m Model) renderFooter() string {
 		}
 	}
 	
-	return "\n" + helpStyle.Render(strings.Join(help, " • "))
+	// Join help items and wrap based on terminal width
+	helpText := strings.Join(help, " • ")
+
+	// Use lipgloss to set max width and enable wrapping
+	wrapped := helpStyle.
+		Width(m.width).
+		Render(helpText)
+
+	return "\n" + wrapped
 }
 
 func (m Model) renderHelp() string {
@@ -852,20 +860,22 @@ func (m Model) renderStateMenu() string {
 	if m.cursor >= len(m.filtered) {
 		return MsgNoTaskSelected
 	}
-	
+
 	file := m.filtered[m.cursor]
-	// Always read fresh from disk
-	task, err := denote.ParseTaskFile(file.Path)
-	if err != nil {
-		return "Failed to read task"
-	}
-	
-	prompt := titleStyle.Render("Change Task Status")
-	
-	taskInfo := baseStyle.Render(fmt.Sprintf("\nTask: %s", task.TaskMetadata.Title))
-	currentStatus := baseStyle.Render(fmt.Sprintf("\nCurrent status: %s", task.TaskMetadata.Status))
-	
-	options := `
+
+	// Check if it's a task or project
+	if file.IsTask() {
+		// Always read fresh from disk
+		task, err := denote.ParseTaskFile(file.Path)
+		if err != nil {
+			return "Failed to read task"
+		}
+
+		prompt := titleStyle.Render("Change Task Status")
+		taskInfo := baseStyle.Render(fmt.Sprintf("\nTask: %s", task.TaskMetadata.Title))
+		currentStatus := baseStyle.Render(fmt.Sprintf("\nCurrent status: %s", task.TaskMetadata.Status))
+
+		options := `
 
 Change to:
   (o) Open
@@ -873,10 +883,35 @@ Change to:
   (d) Done
   (e) Delegated
   (r) Dropped
-  
+
   Esc to cancel`
-	
-	return prompt + taskInfo + currentStatus + helpStyle.Render(options)
+
+		return prompt + taskInfo + currentStatus + helpStyle.Render(options)
+	} else if file.IsProject() {
+		// Project status menu
+		project, err := denote.ParseProjectFile(file.Path)
+		if err != nil {
+			return "Failed to read project"
+		}
+
+		prompt := titleStyle.Render("Change Project Status")
+		projectInfo := baseStyle.Render(fmt.Sprintf("\nProject: %s", project.ProjectMetadata.Title))
+		currentStatus := baseStyle.Render(fmt.Sprintf("\nCurrent status: %s", project.ProjectMetadata.Status))
+
+		options := `
+
+Change to:
+  (a) Active
+  (c) Completed
+  (p) Paused
+  (x) Cancelled
+
+  Esc to cancel`
+
+		return prompt + projectInfo + currentStatus + helpStyle.Render(options)
+	}
+
+	return "Unknown item type"
 }
 
 func (m Model) renderConfirmDelete() string {
