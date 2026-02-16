@@ -88,7 +88,7 @@ go install github.com/pdxmph/denote-tasks@latest
 Or for a specific version:
 
 ```bash
-go install github.com/pdxmph/denote-tasks@v0.2.0
+go install github.com/pdxmph/denote-tasks@v0.17.0
 ```
 
 ## Usage
