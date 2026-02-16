@@ -5,6 +5,30 @@ All notable changes to denote-tasks will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2026-02-15
+
+### Added
+- **Tag for Today feature** for morning time-blocking workflow
+  - Tasks tagged for today appear at top of list with ★ indicator
+  - Visual separator line between today tasks and regular tasks
+  - Hotkey 'y' to toggle today tag on selected task
+  - Hotkey 'Y' (shift) to clear all today tags with confirmation dialog
+  - Auto-clears overnight when date changes (no manual cleanup needed)
+  - Query language support: `today:tagged`, `today_date:YYYY-MM-DD`
+  - Added `TodayDate` field to TaskMetadata
+- SKILL.md documentation section for "Daily Planning with Tag for Today"
+  - Proactive agent behavior patterns
+  - CLI and TUI usage examples
+  - Agent workflow examples for morning planning
+
+### Fixed
+- **TUI alignment issues** - tasks and projects now align perfectly
+  - Fixed nested ANSI escape sequences causing column misalignment
+  - Pad text BEFORE applying color instead of after
+  - Avoid wrapping entire lines in additional .Render() calls
+  - Projects and tasks use identical line format
+- Stable sort now properly handles tasks vs projects (all tasks before all projects)
+
 ## [0.17.3] - 2026-02-15
 
 ### Fixed

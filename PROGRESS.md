@@ -7,7 +7,77 @@ Features that compile but haven't been tested must be marked as "IMPLEMENTED BUT
 
 ---
 
-## Session: 2026-02-15 - AI Agent Integration Features
+## Session: 2026-02-15 (Evening) - Tag for Today Feature & TUI Alignment Fixes
+
+### Summary
+
+Implemented "tag for today" feature for morning time-blocking workflow and fixed critical TUI alignment issues. Released as v0.18.0.
+
+### Major Features Implemented ✅
+
+**1. Tag for Today Feature**
+- Added `TodayDate` field to TaskMetadata (YYYY-MM-DD format)
+- Tasks tagged for today appear at top with ★ indicator
+- Visual separator line between today tasks and regular tasks
+- Hotkey 'y' to toggle today tag on selected task
+- Hotkey 'Y' (shift) to clear all today tags with confirmation dialog
+- Auto-clears overnight (tasks show as not-tagged-for-today when date doesn't match)
+- Query language support: `today:tagged`, `today_date:2026-02-15`
+- Stable sort properly handles tasks vs projects
+- Tested: All functionality working perfectly
+
+**2. TUI Alignment Fixes**
+- Fixed critical rendering bug where columns misaligned
+- Root cause: Nested ANSI escape sequences from wrapping colored fields in additional `.Render()` calls
+- Solution: Pad text BEFORE applying color, return lines directly without additional wrapping
+- Projects and tasks now use identical line format for perfect alignment
+- Applied fix to both renderTaskLine() and renderProjectLine()
+- Tested: Perfect alignment with all field combinations
+
+**3. SKILL.md Documentation**
+- Added comprehensive "★ Daily Planning with 'Tag for Today'" section
+- Proactive agent behavior patterns for morning planning
+- CLI and TUI usage examples
+- Agent workflow examples (morning planning, follow-up, cleanup)
+- Query language reference
+- Installed globally in ~/.claude/skills/denote-tasks/
+
+### Technical Details
+
+**Files Modified:**
+- `internal/denote/types.go` - Added TodayDate field and IsTaggedForToday() method
+- `internal/query/ast.go` - Added today/today_date field evaluation
+- `internal/tui/model.go` - Added toggleTodayTag(), clearAllTodayTags(), ModeConfirmClearToday
+- `internal/tui/model.go` - Fixed sortFiles() to properly handle tasks vs projects
+- `internal/tui/views.go` - Added ★ indicator, separator line, fixed alignment by padding before coloring
+- `internal/tui/keys.go` - Added 'y' and 'Y' handlers, handleConfirmClearTodayKeys()
+- `~/.claude/skills/denote-tasks/SKILL.md` - Added comprehensive today feature documentation
+
+**Alignment Fix Details:**
+- Changed from: `lipgloss.Style.Width().Render()` + `fmt.Sprintf("%*s")` mixing
+- Changed to: `fmt.Sprintf("%-*s")` for padding THEN `lipgloss.Style.Render()` for color
+- Avoided nested .Render() calls that wrap already-colored text
+- Used string concatenation instead of fmt.Sprintf for final line assembly
+
+### Release
+
+- **v0.18.0** - Tag for Today feature + TUI alignment fixes
+
+### Testing Status
+
+All features tested and verified:
+- ✅ Today indicator (★) displays correctly
+- ✅ Tasks sort to top when tagged for today
+- ✅ Separator line appears at correct position
+- ✅ 'y' hotkey toggles today tag
+- ✅ 'Y' hotkey shows confirmation and clears all
+- ✅ Query language `today:tagged` works
+- ✅ Perfect column alignment for tasks and projects
+- ✅ Alignment consistent across filtering and window resize
+
+---
+
+## Session: 2026-02-15 (Afternoon) - AI Agent Integration Features
 
 ### Summary
 
