@@ -126,12 +126,23 @@ func (m Model) renderHeader() string {
 		sortInfo += " ↑"
 	}
 	
-	// Status line
-	itemType := "tasks"
-	if m.projectFilter {
-		itemType = "projects"
+	// Status line - count tasks and projects separately
+	var taskCount, projectCount int
+	for _, f := range m.filtered {
+		if f.IsProject() {
+			projectCount++
+		} else {
+			taskCount++
+		}
 	}
-	status := fmt.Sprintf("%d %s", len(m.filtered), itemType)
+	var status string
+	if m.projectFilter {
+		status = fmt.Sprintf("%d projects", projectCount)
+	} else if projectCount > 0 {
+		status = fmt.Sprintf("%d tasks / %d projects", taskCount, projectCount)
+	} else {
+		status = fmt.Sprintf("%d tasks", taskCount)
+	}
 	if len(filterInfo) > 0 {
 		status += " | " + strings.Join(filterInfo, " | ")
 	}
