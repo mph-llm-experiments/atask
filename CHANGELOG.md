@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-02-18
+
+### Added
+- **Default state filter** - TUI now hides completed tasks at launch via `default_state_filter = "incomplete"` config option
+  - New "incomplete" pseudo-state: shows everything except done tasks and completed projects
+  - Configurable: set to `"incomplete"`, `"active"`, any specific status, or `""` for no filter
+  - State filters now apply to projects too (incomplete hides completed/cancelled, active shows only active, specific statuses hide projects)
+- **Loose tasks filter** - Toggle with `l` in filter menu to show only tasks with no project association
+  - Useful for finding orphaned tasks that need to be organized into projects
+
 ## [0.19.0] - 2026-02-16
 
 ### Changed
@@ -93,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 See git tags and commit history for changes prior to v0.17.0.
 
+[0.21.0]: https://github.com/mph-llm-experiments/atask/compare/v0.20.0...v0.21.0
 [0.19.0]: https://github.com/mph-llm-experiments/atask/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/mph-llm-experiments/atask/compare/v0.17.3...v0.18.0
 [0.17.3]: https://github.com/mph-llm-experiments/atask/compare/v0.17.2...v0.17.3

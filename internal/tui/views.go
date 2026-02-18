@@ -107,6 +107,9 @@ func (m Model) renderHeader() string {
 	if m.stateFilter != "" {
 		filterInfo = append(filterInfo, fmt.Sprintf("State: %s", m.stateFilter))
 	}
+	if m.looseFilter {
+		filterInfo = append(filterInfo, "Loose")
+	}
 	if m.soonFilter {
 		filterInfo = append(filterInfo, fmt.Sprintf("Soon: %dd", m.config.SoonHorizon))
 	}
@@ -1001,6 +1004,9 @@ func (m Model) renderFilterMenu() string {
 	if m.stateFilter != "" {
 		activeFilters = append(activeFilters, fmt.Sprintf("State: %s", m.stateFilter))
 	}
+	if m.looseFilter {
+		activeFilters = append(activeFilters, "Loose (no project)")
+	}
 	if m.soonFilter {
 		activeFilters = append(activeFilters, fmt.Sprintf("Soon: %d days", m.config.SoonHorizon))
 	}
@@ -1023,10 +1029,11 @@ Filter by:
   (a) Area
   (p) Priority
   (s) State
+  (l) Loose tasks (toggle) - no project
   (d) Due soon (toggle)
-  
+
   (c) Clear all filters
-  
+
   Esc to close`
 	
 	return prompt + current + helpStyle.Render(options)
@@ -1065,15 +1072,16 @@ func (m Model) renderStateFilter() string {
 	options := `
 
 Select state:
+  (i) Incomplete (everything except done)
   (a) Active (open + delegated)
   (o) Open only
   (p) Paused
   (d) Done
   (e) Delegated only
   (r) Dropped
-  
+
   (c) Clear state filter
-  
+
   Esc to cancel`
 	
 	return prompt + current + helpStyle.Render(options)

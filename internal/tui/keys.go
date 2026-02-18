@@ -655,8 +655,8 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.stateFilter = ""
 		} else {
 			m.statusMsg = "Showing all tasks"
-			// Restore active filter when going back to tasks
-			m.stateFilter = "active"
+			// Restore default state filter when going back to tasks
+			m.stateFilter = m.config.Tasks.DefaultStateFilter
 		}
 		m.cursor = 0
 		m.applyFilters()
@@ -669,9 +669,9 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Currently in project list, switch to task list
 			m.projectFilter = false
 			m.statusMsg = "Showing tasks"
-			// Restore state filter for tasks
+			// Restore default state filter for tasks
 			if m.stateFilter == "" {
-				m.stateFilter = "active"
+				m.stateFilter = m.config.Tasks.DefaultStateFilter
 			}
 			m.applyFilters()
 			m.sortFiles()
@@ -1111,6 +1111,19 @@ func (m Model) handleFilterMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// State filter  
 		m.mode = ModeStateFilter
 		
+	case "l":
+		// Loose filter toggle (tasks with no project)
+		m.looseFilter = !m.looseFilter
+		m.mode = ModeNormal
+		if m.looseFilter {
+			m.statusMsg = "Showing loose tasks (no project)"
+		} else {
+			m.statusMsg = "Loose filter disabled"
+		}
+		m.applyFilters()
+		m.sortFiles()
+		m.loadVisibleMetadata()
+
 	case "d":
 		// Soon filter toggle
 		m.soonFilter = !m.soonFilter
@@ -1130,6 +1143,7 @@ func (m Model) handleFilterMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.priorityFilter = ""
 		m.stateFilter = ""
 		m.soonFilter = false
+		m.looseFilter = false
 		m.mode = ModeNormal
 		m.statusMsg = "All filters cleared"
 		m.applyFilters()
@@ -1187,6 +1201,15 @@ func (m Model) handleStateFilterKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "ctrl+c":
 		m.mode = ModeNormal
 		
+	case "i":
+		// Incomplete (everything except done)
+		m.stateFilter = "incomplete"
+		m.mode = ModeNormal
+		m.statusMsg = "Filtering by state: incomplete (everything except done)"
+		m.applyFilters()
+		m.sortFiles()
+		m.loadVisibleMetadata()
+
 	case "a":
 		// Active (open + delegated)
 		m.stateFilter = "active"

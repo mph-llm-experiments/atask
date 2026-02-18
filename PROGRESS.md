@@ -7,6 +7,46 @@ Features that compile but haven't been tested must be marked as "IMPLEMENTED BUT
 
 ---
 
+## Session: 2026-02-18 - Default State Filter & Loose Tasks Filter
+
+### Summary
+
+Added default state filter to hide completed tasks at TUI launch, and a "loose tasks" filter to show only tasks with no project association.
+
+### Features Implemented ✅
+
+**1. Default State Filter**
+- New `default_state_filter` config option under `[tasks]` (default: `"incomplete"`)
+- "incomplete" pseudo-state hides done tasks and completed/cancelled projects
+- Applied at model initialization so it takes effect before first render
+- State filters now apply to projects too (previously task-only)
+- Available in state filter menu as `(i) Incomplete`
+
+**2. Loose Tasks Filter**
+- Toggle with `l` in filter menu
+- Shows only tasks with no `project_id` (hides projects too)
+- Useful for finding orphaned tasks
+
+**3. Project State Filtering**
+- "incomplete" → hides completed and cancelled projects
+- "active" → shows only active projects
+- Specific task statuses → hides all projects (no equivalent)
+
+### Files Modified
+- `internal/config/config.go` - Added `DefaultStateFilter` field, default, validation
+- `internal/tui/model.go` - Added `looseFilter`, "incomplete" filter logic, default state in NewModel
+- `internal/tui/tui.go` - Removed post-init filter (moved to NewModel)
+- `internal/tui/keys.go` - Added `i` and `l` key handlers, use config default instead of hardcoded "active"
+- `internal/tui/views.go` - Added "Incomplete" and "Loose" to menus and status bar
+- `README.md` - Updated config example and hotkey docs
+- `CHANGELOG.md` - Added v0.21.0 entry
+- `SKILL.md` - Added config docs for `default_state_filter`
+
+### Release
+- **v0.21.0** - Default state filter and loose tasks filter
+
+---
+
 ## Session: 2026-02-16 - Project Rename to "atask"
 
 ### Summary

@@ -42,6 +42,7 @@ type Model struct {
 	priorityFilter string
 	stateFilter    string
 	soonFilter     bool
+	looseFilter    bool  // Filter to show only tasks with no project
 	projectFilter  bool  // Filter to show only projects
 	
 	// Preview
@@ -152,9 +153,10 @@ func NewModel(cfg *config.Config) (*Model, error) {
 		mode:            ModeNormal,
 		sortBy:          sortBy,
 		reverseSort:     reverseSort,
+		stateFilter:     cfg.Tasks.DefaultStateFilter,
 		fieldRenderer:   NewFieldRenderer(),
 	}
-	
+
 	// Initial scan
 	if err := m.scanFiles(); err != nil {
 		return nil, err
@@ -269,19 +271,47 @@ func (m *Model) applyFilters() {
 				}
 			}
 			
-			// State filter (tasks only)
-			if m.stateFilter != "" && taskMeta != nil {
-				if m.stateFilter == "active" {
-					// Active means open or delegated
-					if taskMeta.Status != denote.TaskStatusOpen && 
-					   taskMeta.Status != denote.TaskStatusDelegated {
+			// State filter (tasks and projects)
+			if m.stateFilter != "" {
+				if m.stateFilter == "incomplete" {
+					// Incomplete means everything except done/completed
+					if taskMeta != nil && taskMeta.Status == denote.TaskStatusDone {
 						continue
 					}
-				} else if taskMeta.Status != m.stateFilter {
-					continue
+					if projectMeta != nil && (projectMeta.Status == denote.ProjectStatusCompleted ||
+						projectMeta.Status == denote.ProjectStatusCancelled) {
+						continue
+					}
+				} else if m.stateFilter == "active" {
+					// Active: open/delegated tasks, active projects
+					if taskMeta != nil && taskMeta.Status != denote.TaskStatusOpen &&
+						taskMeta.Status != denote.TaskStatusDelegated {
+						continue
+					}
+					if projectMeta != nil && projectMeta.Status != denote.ProjectStatusActive {
+						continue
+					}
+				} else {
+					// Specific task status — hide projects (no equivalent)
+					if projectMeta != nil {
+						continue
+					}
+					if taskMeta != nil && taskMeta.Status != m.stateFilter {
+						continue
+					}
 				}
 			}
 			
+			// Loose filter (tasks with no project association)
+			if m.looseFilter {
+				if projectMeta != nil {
+					continue
+				}
+				if taskMeta != nil && taskMeta.ProjectID != "" {
+					continue
+				}
+			}
+
 			// Soon filter (tasks and projects with due dates)
 			if m.soonFilter {
 				isDueSoon := false

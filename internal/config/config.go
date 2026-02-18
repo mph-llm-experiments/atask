@@ -25,8 +25,9 @@ type TUIConfig struct {
 
 // TasksConfig represents task-specific settings
 type TasksConfig struct {
-	SortBy    string `toml:"sort_by"`    // due, priority, project, estimate, title, created, modified
-	SortOrder string `toml:"sort_order"` // normal, reverse
+	SortBy             string `toml:"sort_by"`              // due, priority, project, estimate, title, created, modified
+	SortOrder          string `toml:"sort_order"`           // normal, reverse
+	DefaultStateFilter string `toml:"default_state_filter"` // incomplete, active, open, paused, done, delegated, dropped, or "" for none
 }
 
 // DefaultConfig returns default configuration
@@ -41,8 +42,9 @@ func DefaultConfig() *Config {
 			Theme: "default",
 		},
 		Tasks: TasksConfig{
-			SortBy:    "due",
-			SortOrder: "normal", // Closest due dates first
+			SortBy:             "due",
+			SortOrder:          "normal", // Closest due dates first
+			DefaultStateFilter: "incomplete",
 		},
 	}
 }
@@ -164,6 +166,20 @@ func (c *Config) Validate() error {
 	
 	if c.Tasks.SortOrder != "" && c.Tasks.SortOrder != "normal" && c.Tasks.SortOrder != "reverse" {
 		return fmt.Errorf("invalid tasks sort_order: %s (valid: normal, reverse)", c.Tasks.SortOrder)
+	}
+
+	if c.Tasks.DefaultStateFilter != "" {
+		validStateFilters := []string{"incomplete", "active", "open", "paused", "done", "delegated", "dropped"}
+		valid := false
+		for _, f := range validStateFilters {
+			if c.Tasks.DefaultStateFilter == f {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("invalid tasks default_state_filter: %s (valid: incomplete, active, open, paused, done, delegated, dropped)", c.Tasks.DefaultStateFilter)
+		}
 	}
 
 	return nil

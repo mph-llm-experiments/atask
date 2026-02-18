@@ -160,6 +160,7 @@ atask project tasks <project-id> --json # JSON output (preferred for agents)
 - `notes_directory` - Where task files are stored (default: `~/tasks`)
 - `default_area` - Default area for new tasks
 - `soon_horizon` - Days ahead for "due soon" filter (default: 3)
+- `[tasks] default_state_filter` - State filter applied at TUI launch (default: `"incomplete"` — hides done tasks and completed projects)
 
 **Check config location:**
 ```bash

@@ -167,7 +167,7 @@ atask project tasks 15  # Show tasks for project
 - `P` - Toggle projects view
 - `T` - Toggle tasks view
 - `S` - Sort options menu
-- `f` - Filter menu (area/priority/state/soon)
+- `f` - Filter menu (area/priority/state/loose/soon)
 
 **General:**
 
@@ -245,8 +245,9 @@ soon_horizon = 3            # Days ahead for "soon" filter
 theme = "default"           # UI theme
 
 [tasks]
-sort_by = "due"             # Default sort: due, priority, project, title, created
-sort_order = "normal"       # normal or reverse
+sort_by = "due"                        # Default sort: due, priority, project, title, created
+sort_order = "normal"                  # normal or reverse
+default_state_filter = "incomplete"    # Hide completed tasks at launch (incomplete, active, or "" for none)
 ```
 
 ## AI Agent Skill Installation

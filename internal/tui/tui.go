@@ -23,7 +23,7 @@ func Run(cfg *config.Config, filters ...string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create model: %w", err)
 	}
-	
+
 	// Handle initial flags
 	if showProjects {
 		// Show projects list
@@ -34,19 +34,21 @@ func Run(cfg *config.Config, filters ...string) error {
 			model.sortBy = "due"
 		}
 		model.reverseSort = cfg.Tasks.SortOrder == "reverse"
-		
+
 		// Apply area filter if also provided
 		if areaFilter != "" {
 			model.areaFilter = areaFilter
 		}
-		
+
 		model.applyFilters()
 		model.sortFiles()
 		model.loadVisibleMetadata()
 	} else if areaFilter != "" {
 		// Just area filter (tasks)
 		model.areaFilter = areaFilter
-		model.stateFilter = "active"    // Apply active filter
+		if model.stateFilter == "" {
+			model.stateFilter = "active"    // Apply active filter when no default configured
+		}
 		// Use configured defaults for tasks
 		model.sortBy = cfg.Tasks.SortBy
 		if model.sortBy == "" {
