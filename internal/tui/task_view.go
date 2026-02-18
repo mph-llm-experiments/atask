@@ -2,8 +2,9 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
-	
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mph-llm-experiments/atask/internal/denote"
 )
@@ -215,16 +216,19 @@ func (m Model) renderTaskDetails() string {
 	// Project with name lookup
 	if meta.ProjectID != "" {
 		projectName := meta.ProjectID
-		// Look up project name by reading from disk
+		// Look up project name by index_id
 		for _, f := range m.files {
-			if f.ID == meta.ProjectID && f.IsProject() {
-				// Always read fresh from disk
-				if proj, err := denote.ParseProjectFile(f.Path); err == nil && proj.ProjectMetadata.Title != "" {
-					projectName = proj.ProjectMetadata.Title
-				} else if f.Title != "" {
-					projectName = f.Title
+			if f.IsProject() {
+				if proj, err := denote.ParseProjectFile(f.Path); err == nil {
+					if strconv.Itoa(proj.IndexID) == meta.ProjectID {
+						if proj.ProjectMetadata.Title != "" {
+							projectName = proj.ProjectMetadata.Title
+						} else if f.Title != "" {
+							projectName = f.Title
+						}
+						break
+					}
 				}
-				break
 			}
 		}
 		lines = append(lines, m.renderFieldWithHotkey("Project", projectName, "not set", "j"))

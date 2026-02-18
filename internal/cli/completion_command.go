@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/mph-llm-experiments/atask/internal/config"
 	"github.com/mph-llm-experiments/atask/internal/denote"
@@ -69,7 +70,11 @@ func outputTaskIDs(files []denote.File) error {
 }
 
 func outputProjectIDs(files []denote.File) error {
-	projects := make(map[string]string) // ID -> Title
+	type projectInfo struct {
+		indexID int
+		title   string
+	}
+	var projects []projectInfo
 
 	for _, file := range files {
 		if file.IsProject() {
@@ -79,20 +84,19 @@ func outputProjectIDs(files []denote.File) error {
 				if title == "" {
 					title = file.Title
 				}
-				projects[file.ID] = title
+				projects = append(projects, projectInfo{indexID: project.IndexID, title: title})
 			}
 		}
 	}
 
-	// Output as "ID:Title" for richer completion
-	var items []string
-	for id, title := range projects {
-		items = append(items, fmt.Sprintf("%s:%s", id, title))
-	}
-	sort.Strings(items)
-	
-	for _, item := range items {
-		fmt.Println(item)
+	// Sort by index_id
+	sort.Slice(projects, func(i, j int) bool {
+		return projects[i].indexID < projects[j].indexID
+	})
+
+	// Output as "index_id:Title" for richer completion
+	for _, p := range projects {
+		fmt.Printf("%s:%s\n", strconv.Itoa(p.indexID), p.title)
 	}
 	return nil
 }

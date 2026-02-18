@@ -80,10 +80,11 @@ Global Options:
 		root.Subcommands = append(root.Subcommands, cmd)
 	}
 	
-	// Add project and completion commands
-	root.Subcommands = append(root.Subcommands, 
+	// Add project, completion, and migrate commands
+	root.Subcommands = append(root.Subcommands,
 		ProjectCommand(cfg),
 		CompletionCommand(cfg),
+		MigrateCommand(cfg),
 	)
 
 	// Execute command

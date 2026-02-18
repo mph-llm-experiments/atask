@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -300,29 +301,24 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 	// Project name
 	projectName := ""
 	if task.TaskMetadata.ProjectID != "" {
-		// Look up project name from cached metadata or file list
+		// Look up project name by index_id
 		for _, f := range m.files {
-			if f.ID == task.TaskMetadata.ProjectID && f.IsProject() {
-				var projTitle string
-				var isActiveProject bool
-				
-				// Always read fresh from disk
+			if f.IsProject() {
 				if proj, err := denote.ParseProjectFile(f.Path); err == nil {
-					projTitle = truncate(proj.ProjectMetadata.Title, 15)
-					isActiveProject = (proj.ProjectMetadata.Status == denote.ProjectStatusActive || proj.ProjectMetadata.Status == "")
-				} else {
-					projTitle = truncate(f.Title, 15)
-					isActiveProject = true // Assume active if no metadata
-				}
-				
-				if projTitle != "" {
-					if isActiveProject {
-						projectName = cyanStyle.Render("→ " + projTitle)
-					} else {
-						projectName = fmt.Sprintf("→ %s", projTitle)
+					if strconv.Itoa(proj.IndexID) == task.TaskMetadata.ProjectID {
+						projTitle := truncate(proj.ProjectMetadata.Title, 15)
+						isActiveProject := (proj.ProjectMetadata.Status == denote.ProjectStatusActive || proj.ProjectMetadata.Status == "")
+
+						if projTitle != "" {
+							if isActiveProject {
+								projectName = cyanStyle.Render("→ " + projTitle)
+							} else {
+								projectName = fmt.Sprintf("→ %s", projTitle)
+							}
+						}
+						break
 					}
 				}
-				break
 			}
 		}
 	}
@@ -689,16 +685,19 @@ func (m Model) renderCreate() string {
 	projectDisplay := m.createProject
 	projectHint := MsgPressEnterSelect
 	if m.createProject != "" {
-		// Find project name
+		// Find project name by index_id
 		for _, f := range m.files {
-			if f.ID == m.createProject && f.IsProject() {
-				// Always read fresh from disk
-				if proj, err := denote.ParseProjectFile(f.Path); err == nil && proj.ProjectMetadata.Title != "" {
-					projectDisplay = proj.ProjectMetadata.Title
-				} else if f.Title != "" {
-					projectDisplay = f.Title
+			if f.IsProject() {
+				if proj, err := denote.ParseProjectFile(f.Path); err == nil {
+					if strconv.Itoa(proj.IndexID) == m.createProject {
+						if proj.ProjectMetadata.Title != "" {
+							projectDisplay = proj.ProjectMetadata.Title
+						} else if f.Title != "" {
+							projectDisplay = f.Title
+						}
+						break
+					}
 				}
-				break
 			}
 		}
 		projectHint = MsgPressEnterChange

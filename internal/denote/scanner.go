@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -427,9 +428,9 @@ func getProjectName(file File, taskMeta map[string]*Task, projectMeta map[string
 	
 	// If it's a task, get the project it belongs to
 	if task, ok := taskMeta[file.Path]; ok && task.TaskMetadata.ProjectID != "" {
-		// Find the project by ID
+		// Find the project by index_id
 		for _, proj := range projectMeta {
-			if proj.File.ID == task.TaskMetadata.ProjectID {
+			if strconv.Itoa(proj.IndexID) == task.TaskMetadata.ProjectID {
 				return proj.ProjectMetadata.Title
 			}
 		}

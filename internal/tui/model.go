@@ -1158,14 +1158,14 @@ func (m *Model) loadProjectTasks() {
 	}
 	
 	m.projectTasks = []denote.Task{}
-	projectID := m.viewingProject.File.ID
-	
+	projectIDStr := strconv.Itoa(m.viewingProject.IndexID)
+
 	// Go through all task files and find ones assigned to this project
 	for _, file := range m.files {
 		if file.IsTask() {
 			// Always load fresh metadata from disk
 			if task, err := denote.ParseTaskFile(file.Path); err == nil {
-				if task.TaskMetadata.ProjectID == projectID {
+				if task.TaskMetadata.ProjectID == projectIDStr {
 					m.projectTasks = append(m.projectTasks, *task)
 				}
 			}
@@ -1243,11 +1243,15 @@ func (m *Model) taskMatchesSearch(task *denote.Task, query string) bool {
 	// Search in project name by looking through files
 	if task.ProjectID != "" {
 		for _, file := range m.files {
-			if file.ID == task.ProjectID && file.IsProject() {
-				if fuzzyMatch(strings.ToLower(file.Title), query) {
-					return true
+			if file.IsProject() {
+				if proj, err := denote.ParseProjectFile(file.Path); err == nil {
+					if strconv.Itoa(proj.IndexID) == task.ProjectID {
+						if fuzzyMatch(strings.ToLower(proj.ProjectMetadata.Title), query) {
+							return true
+						}
+						break
+					}
 				}
-				break
 			}
 		}
 	}
@@ -1358,14 +1362,14 @@ func (m *Model) findTasksAffectedByProjectDeletion() {
 	}
 	
 	m.affectedTasks = []denote.Task{}
-	projectID := m.viewingProject.File.ID
-	
+	projectIDStr := strconv.Itoa(m.viewingProject.IndexID)
+
 	// Go through all task files and find ones assigned to this project
 	for _, file := range m.files {
 		if file.IsTask() {
 			// Always load fresh metadata
 			if task, err := denote.ParseTaskFile(file.Path); err == nil {
-				if task.TaskMetadata.ProjectID == projectID {
+				if task.TaskMetadata.ProjectID == projectIDStr {
 					m.affectedTasks = append(m.affectedTasks, *task)
 				}
 			}

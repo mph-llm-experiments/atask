@@ -3,8 +3,9 @@ package tui
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
-	
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mph-llm-experiments/atask/internal/denote"
 )
@@ -232,7 +233,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.resetCreateFields()
 		// Pre-fill the project ID from the current project
 		if m.viewingProject != nil {
-			m.createProject = m.viewingProject.File.ID
+			m.createProject = strconv.Itoa(m.viewingProject.IndexID)
 		}
 		// Pre-fill area if the project has one
 		if m.viewingProject != nil && m.viewingProject.ProjectMetadata.Area != "" {

@@ -1386,12 +1386,12 @@ func (m Model) handleProjectSelectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			selected := m.projectSelectList[m.projectSelectCursor-1]
 			
 			if m.projectSelectFor == "create" {
-				// Set project ID in create form
-				m.createProject = selected.File.ID
+				// Set project ID in create form (using index_id)
+				m.createProject = strconv.Itoa(selected.IndexID)
 				m.mode = ModeCreate
 			} else if m.projectSelectFor == "update" && m.projectSelectTask != nil {
-				// Update task with selected project
-				m.projectSelectTask.TaskMetadata.ProjectID = selected.File.ID
+				// Update task with selected project (using index_id)
+				m.projectSelectTask.TaskMetadata.ProjectID = strconv.Itoa(selected.IndexID)
 				if err := task.UpdateTaskFile(m.projectSelectTask.File.Path, m.projectSelectTask.TaskMetadata); err != nil {
 					m.statusMsg = fmt.Sprintf("Error updating task: %v", err)
 				} else {

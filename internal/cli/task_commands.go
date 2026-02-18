@@ -130,8 +130,16 @@ func taskNewCommand(cfg *config.Config) *Command {
 				t.TaskMetadata.DueDate = dueDate
 			}
 			if project != "" {
-				// TODO: Look up project by name/ID
-				t.TaskMetadata.ProjectID = project
+				// Resolve project argument to index_id
+				projectNum, err := strconv.Atoi(project)
+				if err != nil {
+					return fmt.Errorf("invalid project ID: %s (must be a numeric index_id)", project)
+				}
+				p, err := task.FindProjectByID(cfg.NotesDirectory, projectNum)
+				if err != nil {
+					return fmt.Errorf("project %d not found", projectNum)
+				}
+				t.TaskMetadata.ProjectID = strconv.Itoa(p.IndexID)
 			}
 			if estimate > 0 {
 				t.TaskMetadata.Estimate = estimate
@@ -216,12 +224,12 @@ func taskListCommand(cfg *config.Config) *Command {
 		}
 
 		// First pass: collect all projects for name lookup
-		projectNames := make(map[string]string) // ID -> Title
+		projectNames := make(map[string]string) // index_id string -> Title
 		for _, file := range files {
 			if file.IsProject() {
 				p, err := denote.ParseProjectFile(file.Path)
 				if err == nil {
-					projectNames[file.ID] = p.ProjectMetadata.Title
+					projectNames[strconv.Itoa(p.IndexID)] = p.ProjectMetadata.Title
 				}
 			}
 		}
@@ -650,7 +658,18 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 				changed = true
 			}
 			if project != "" {
-				t.TaskMetadata.ProjectID = project
+				// Resolve project argument to index_id
+				projectNum, err := strconv.Atoi(project)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Invalid project ID for task %d: %s (must be numeric)\n", id, project)
+					continue
+				}
+				p, err := task.FindProjectByID(cfg.NotesDirectory, projectNum)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Project %d not found for task %d\n", projectNum, id)
+					continue
+				}
+				t.TaskMetadata.ProjectID = strconv.Itoa(p.IndexID)
 				changed = true
 			}
 			if estimate >= 0 {
@@ -882,9 +901,9 @@ func taskQueryCommand(cfg *config.Config) *Command {
 
 		// Get project names for display
 		projects, _ := scanner.FindProjects()
-		projectNames := make(map[string]string)
+		projectNames := make(map[string]string) // index_id string -> Title
 		for _, p := range projects {
-			projectNames[p.File.ID] = p.ProjectMetadata.Title
+			projectNames[strconv.Itoa(p.IndexID)] = p.ProjectMetadata.Title
 		}
 
 		// Evaluate query against all tasks
@@ -1187,7 +1206,18 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 				changed = true
 			}
 			if project != "" {
-				t.TaskMetadata.ProjectID = project
+				// Resolve project argument to index_id
+				projectNum, err := strconv.Atoi(project)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Invalid project ID: %s (must be numeric)\n", project)
+					continue
+				}
+				p, err := task.FindProjectByID(cfg.NotesDirectory, projectNum)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Project %d not found\n", projectNum)
+					continue
+				}
+				t.TaskMetadata.ProjectID = strconv.Itoa(p.IndexID)
 				changed = true
 			}
 			if estimate >= 0 {

@@ -114,7 +114,7 @@ func projectNewCommand(cfg *config.Config) *Command {
 		}
 
 		if !globalFlags.Quiet {
-			fmt.Printf("Created project: %s (ID: %s)\n", projectFile.Path, projectFile.ID)
+			fmt.Printf("Created project: %s (ID: %d)\n", projectFile.Path, projectFile.IndexID)
 		}
 
 		// Launch TUI if requested
@@ -241,7 +241,7 @@ func projectListCommand(cfg *config.Config) *Command {
 			for i, p := range filtered {
 				jsonProjects[i] = ProjectJSON{
 					Project:   *p,
-					TaskCount: taskCounts[p.File.ID],
+					TaskCount: taskCounts[strconv.Itoa(p.IndexID)],
 				}
 			}
 
@@ -333,7 +333,7 @@ func projectListCommand(cfg *config.Config) *Command {
 			}
 
 			// Task count
-			taskCount := taskCounts[p.File.ID]
+			taskCount := taskCounts[strconv.Itoa(p.IndexID)]
 			taskStr := fmt.Sprintf("(%d tasks)", taskCount)
 
 			// Build the line with fixed-width columns
@@ -417,10 +417,11 @@ func projectTasksCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("failed to find tasks: %v", err)
 		}
 
-		// Filter tasks by project
+		// Filter tasks by project (using index_id)
+		projectIDStr := strconv.Itoa(targetProject.IndexID)
 		var projectTasks []*denote.Task
 		for _, t := range allTasks {
-			if t.TaskMetadata.ProjectID == targetProject.File.ID {
+			if t.TaskMetadata.ProjectID == projectIDStr {
 				// Apply status filter
 				if !all && status == "" && t.TaskMetadata.Status != denote.TaskStatusOpen {
 					continue
