@@ -53,10 +53,10 @@ func outputTaskIDs(files []denote.File) error {
 	for _, file := range files {
 		if file.IsTask() {
 			task, err := denote.ParseTaskFile(file.Path)
-			if err == nil && task.TaskMetadata.IndexID > 0 {
-				if !seen[task.TaskMetadata.IndexID] {
-					ids = append(ids, task.TaskMetadata.IndexID)
-					seen[task.TaskMetadata.IndexID] = true
+			if err == nil && task.IndexID > 0 {
+				if !seen[task.IndexID] {
+					ids = append(ids, task.IndexID)
+					seen[task.IndexID] = true
 				}
 			}
 		}
@@ -80,7 +80,7 @@ func outputProjectIDs(files []denote.File) error {
 		if file.IsProject() {
 			project, err := denote.ParseProjectFile(file.Path)
 			if err == nil {
-				title := project.ProjectMetadata.Title
+				title := project.Title
 				if title == "" {
 					title = file.Title
 				}
@@ -124,7 +124,7 @@ func outputAreas(files []denote.File) error {
 		areaList = append(areaList, area)
 	}
 	sort.Strings(areaList)
-	
+
 	for _, area := range areaList {
 		fmt.Println(area)
 	}
@@ -149,7 +149,7 @@ func outputTags(files []denote.File) error {
 		tagList = append(tagList, tag)
 	}
 	sort.Strings(tagList)
-	
+
 	for _, tag := range tagList {
 		fmt.Println(tag)
 	}

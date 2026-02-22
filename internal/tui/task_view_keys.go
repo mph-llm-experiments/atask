@@ -181,7 +181,8 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Return to project view
 			m.mode = ModeProjectView
 			m.viewingTask = nil
-			m.viewingFile = &m.viewingProject.File
+			file := denote.FileFromProject(m.viewingProject)
+			m.viewingFile = &file
 			m.returnToProject = false
 			// Re-sort project tasks in case metadata changed
 			m.loadProjectTasks()
@@ -230,9 +231,9 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Title field (uppercase - different from tags)
 		m.editingField = "title"
 		if m.viewingTask != nil {
-			m.editBuffer = m.viewingTask.TaskMetadata.Title
+			m.editBuffer = m.viewingTask.Title
 		} else if m.viewingProject != nil {
-			m.editBuffer = m.viewingProject.ProjectMetadata.Title
+			m.editBuffer = m.viewingProject.Title
 		}
 		m.editCursor = len(m.editBuffer)
 		m.statusMsg = "Enter title:"
@@ -294,7 +295,7 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Pre-fill with current tags, filtering out system tags
 		if m.viewingTask != nil {
 			var userTags []string
-			for _, tag := range m.viewingTask.TaskMetadata.Tags {
+			for _, tag := range m.viewingTask.Tags {
 				if tag != "task" && tag != "project" {
 					userTags = append(userTags, tag)
 				}
@@ -314,7 +315,7 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		} else if m.viewingProject != nil {
 			var userTags []string
-			for _, tag := range m.viewingProject.ProjectMetadata.Tags {
+			for _, tag := range m.viewingProject.Tags {
 				if tag != "task" && tag != "project" {
 					userTags = append(userTags, tag)
 				}
@@ -339,54 +340,10 @@ func (m Model) handleTaskViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.statusMsg = "Enter tags (" + MsgSpaceSeparated + "):"
 		
 	case "r":
-		// Rename file to match current metadata tags
-		if m.viewingTask != nil {
-			// Build tag list including 'task' tag
-			allTags := []string{"task"}
-			for _, tag := range m.viewingTask.TaskMetadata.Tags {
-				if tag != "task" {
-					allTags = append(allTags, tag)
-				}
-			}
-			
-			// Rename file
-			oldPath := m.viewingFile.Path
-			newPath, err := denote.RenameFileForTags(oldPath, allTags)
-			if err != nil {
-				m.statusMsg = fmt.Sprintf("Error renaming: %v", err)
-			} else if newPath != oldPath {
-				// Update references
-				m.viewingFile.Path = newPath
-				// Trigger a rescan to update the file list
-				m.scanFiles()
-				m.statusMsg = "File renamed to match tags"
-			} else {
-				m.statusMsg = "Filename already matches tags"
-			}
-		} else if m.viewingProject != nil {
-			// Build tag list including 'project' tag
-			allTags := []string{"project"}
-			for _, tag := range m.viewingProject.ProjectMetadata.Tags {
-				if tag != "project" {
-					allTags = append(allTags, tag)
-				}
-			}
-			
-			// Rename file
-			oldPath := m.viewingFile.Path
-			newPath, err := denote.RenameFileForTags(oldPath, allTags)
-			if err != nil {
-				m.statusMsg = fmt.Sprintf("Error renaming: %v", err)
-			} else if newPath != oldPath {
-				// Update references
-				m.viewingFile.Path = newPath
-				// Trigger a rescan to update the file list
-				m.scanFiles()
-				m.statusMsg = "File renamed to match tags"
-			} else {
-				m.statusMsg = "Filename already matches tags"
-			}
-		}
+		// In acore format, tags are not part of the filename (only type is).
+		// Tags changes are handled by updating the frontmatter only.
+		// No filename rename is needed.
+		m.statusMsg = "Tags are updated in frontmatter only (no filename change)"
 		
 	case "?":
 		m.mode = ModeHelp

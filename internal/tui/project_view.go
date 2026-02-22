@@ -30,7 +30,7 @@ func (m Model) renderProjectView() string {
 	var sections []string
 	
 	// Title
-	title := titleStyle.Render("Project: " + m.viewingProject.ProjectMetadata.Title)
+	title := titleStyle.Render("Project: " + m.viewingProject.Title)
 	sections = append(sections, title)
 	
 	// Tabs
@@ -96,11 +96,11 @@ func (m Model) renderProjectTabs() string {
 func (m Model) renderProjectMain() string {
 	project := m.viewingProject
 	meta := project.ProjectMetadata
-	
+
 	var lines []string
-	
+
 	// Project metadata (similar to task view)
-	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "", "T"))
+	lines = append(lines, m.renderFieldWithHotkey("Title", project.Title, "", "T"))
 	
 	// Status with color
 	statusValue := meta.Status
@@ -162,11 +162,8 @@ func (m Model) renderProjectMain() string {
 	
 	// Tags
 	tagsDisplay := ""
-	if len(meta.Tags) > 0 {
-		tagsDisplay = strings.Join(meta.Tags, " ")
-	} else if len(project.File.Tags) > 0 {
-		// Show file tags if no metadata tags
-		tagsDisplay = strings.Join(project.File.Tags, " ") + " (from filename)"
+	if len(project.Tags) > 0 {
+		tagsDisplay = strings.Join(project.Tags, " ")
 	} else {
 		tagsDisplay = "(not set)"
 	}
@@ -178,7 +175,7 @@ func (m Model) renderProjectMain() string {
 	// File info
 	lines = append(lines, "")
 	lines = append(lines, m.renderFieldWithHotkey("File", m.viewingFile.Path, "", ""))
-	lines = append(lines, m.renderFieldWithHotkey("ID", project.File.ID, "", ""))
+	lines = append(lines, m.renderFieldWithHotkey("ID", project.ID, "", ""))
 	
 	// Add horizontal rule
 	lines = append(lines, "\n" + strings.Repeat("─", 60))
@@ -279,15 +276,12 @@ func (m Model) renderProjectTaskLine(index int, task denote.Task) string {
 		due = fmt.Sprintf("%-12s", due)
 	}
 	
-	title := task.TaskMetadata.Title
-	if title == "" {
-		title = task.File.Title
-	}
+	title := task.Title
 	
-	// Tags from file (excluding 'task' and 'project' tags)
+	// Tags (excluding 'task' and 'project' tags)
 	tags := ""
 	filteredTags := []string{}
-	for _, tag := range task.File.Tags {
+	for _, tag := range task.Tags {
 		if tag != "task" && tag != "project" {
 			filteredTags = append(filteredTags, tag)
 		}

@@ -283,7 +283,7 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 		estimate = fmt.Sprintf("[%3d]", task.TaskMetadata.Estimate)
 	}
 	
-	title := task.TaskMetadata.Title
+	title := task.Title
 	if title == "" {
 		title = file.Title
 	}
@@ -320,7 +320,7 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 			if f.IsProject() {
 				if proj, err := denote.ParseProjectFile(f.Path); err == nil {
 					if strconv.Itoa(proj.IndexID) == task.TaskMetadata.ProjectID {
-						projTitle := truncate(proj.ProjectMetadata.Title, 15)
+						projTitle := truncate(proj.Title, 15)
 						isActiveProject := (proj.ProjectMetadata.Status == denote.ProjectStatusActive || proj.ProjectMetadata.Status == "")
 
 						if projTitle != "" {
@@ -362,7 +362,7 @@ func (m Model) renderTaskLine(index int, file denote.File, task *denote.Task) st
 	
 	// Tags - use metadata tags (from YAML frontmatter), not filename tags
 	var displayTags []string
-	for _, tag := range task.TaskMetadata.Tags {
+	for _, tag := range task.Tags {
 		if tag != "task" && tag != "project" {
 			displayTags = append(displayTags, tag)
 		}
@@ -440,7 +440,7 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 		priorityRaw = "[p3]"
 	}
 	
-	title := project.ProjectMetadata.Title
+	title := project.Title
 	if title == "" {
 		title = file.Title
 	}
@@ -471,7 +471,7 @@ func (m Model) renderProjectLine(index int, file denote.File, project *denote.Pr
 	
 	// Tags - use metadata tags (from YAML frontmatter), not filename tags
 	var displayTags []string
-	for _, tag := range project.ProjectMetadata.Tags {
+	for _, tag := range project.Tags {
 		if tag != "task" && tag != "project" {
 			displayTags = append(displayTags, tag)
 		}
@@ -713,8 +713,8 @@ func (m Model) renderCreate() string {
 			if f.IsProject() {
 				if proj, err := denote.ParseProjectFile(f.Path); err == nil {
 					if strconv.Itoa(proj.IndexID) == m.createProject {
-						if proj.ProjectMetadata.Title != "" {
-							projectDisplay = proj.ProjectMetadata.Title
+						if proj.Title != "" {
+							projectDisplay = proj.Title
 						} else if f.Title != "" {
 							projectDisplay = f.Title
 						}
@@ -852,7 +852,7 @@ func (m Model) renderStateMenu() string {
 		}
 
 		prompt := titleStyle.Render("Change Task Status")
-		taskInfo := baseStyle.Render(fmt.Sprintf("\nTask: %s", task.TaskMetadata.Title))
+		taskInfo := baseStyle.Render(fmt.Sprintf("\nTask: %s", task.Title))
 		currentStatus := baseStyle.Render(fmt.Sprintf("\nCurrent status: %s", task.TaskMetadata.Status))
 
 		options := `
@@ -875,7 +875,7 @@ Change to:
 		}
 
 		prompt := titleStyle.Render("Change Project Status")
-		projectInfo := baseStyle.Render(fmt.Sprintf("\nProject: %s", project.ProjectMetadata.Title))
+		projectInfo := baseStyle.Render(fmt.Sprintf("\nProject: %s", project.Title))
 		currentStatus := baseStyle.Render(fmt.Sprintf("\nCurrent status: %s", project.ProjectMetadata.Status))
 
 		options := `
@@ -899,7 +899,7 @@ func (m Model) renderConfirmDelete() string {
 	if m.viewingProject != nil && m.projectViewTab == 0 && m.mode == ModeConfirmDelete {
 		prompt := titleStyle.Render("Confirm Project Deletion")
 		
-		warning := baseStyle.Render(fmt.Sprintf("\nAre you sure you want to delete project: %s?", m.viewingProject.ProjectMetadata.Title))
+		warning := baseStyle.Render(fmt.Sprintf("\nAre you sure you want to delete project: %s?", m.viewingProject.Title))
 		
 		// Show affected tasks if any
 		affectedInfo := ""
@@ -907,7 +907,7 @@ func (m Model) renderConfirmDelete() string {
 			affectedInfo = fmt.Sprintf("\n\n⚠️  This will affect %d task(s):", len(m.affectedTasks))
 			for i, task := range m.affectedTasks {
 				if i < 10 { // Show first 10 tasks
-					affectedInfo += fmt.Sprintf("\n  • %s", task.TaskMetadata.Title)
+					affectedInfo += fmt.Sprintf("\n  • %s", task.Title)
 				} else if i == 10 {
 					affectedInfo += fmt.Sprintf("\n  ... and %d more", len(m.affectedTasks)-10)
 					break
@@ -935,7 +935,7 @@ func (m Model) renderConfirmDelete() string {
 		task := m.projectTasks[m.projectTasksCursor]
 		prompt := titleStyle.Render("Confirm Delete")
 		warning := baseStyle.Render("\nAre you sure you want to delete this task?")
-		fileName := baseStyle.Render(fmt.Sprintf("\n\nTask: %s", task.TaskMetadata.Title))
+		fileName := baseStyle.Render(fmt.Sprintf("\n\nTask: %s", task.Title))
 		
 		options := `
 
@@ -1127,8 +1127,8 @@ func (m Model) renderLogEntry() string {
 	
 	title := m.loggingFile.Title
 	// Always read fresh from disk
-	if task, err := denote.ParseTaskFile(m.loggingFile.Path); err == nil && task.TaskMetadata.Title != "" {
-		title = task.TaskMetadata.Title
+	if task, err := denote.ParseTaskFile(m.loggingFile.Path); err == nil && task.Title != "" {
+		title = task.Title
 	}
 	
 	prompt := titleStyle.Render("Add Log Entry")
@@ -1191,10 +1191,7 @@ func (m Model) renderProjectSelect() string {
 		}
 		
 		// Project title and area
-		title := project.ProjectMetadata.Title
-		if title == "" {
-			title = project.File.Title
-		}
+		title := project.Title
 		
 		area := ""
 		if project.ProjectMetadata.Area != "" {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/mph-llm-experiments/acore"
 	"github.com/mph-llm-experiments/atask/internal/config"
 	"github.com/mph-llm-experiments/atask/internal/denote"
 	"github.com/mph-llm-experiments/atask/internal/query"
@@ -29,6 +30,7 @@ func TaskCommand(cfg *config.Config) *Command {
 	cmd.Subcommands = []*Command{
 		taskNewCommand(cfg),
 		taskListCommand(cfg),
+		taskShowCommand(cfg),
 		taskQueryCommand(cfg),
 		taskUpdateCommand(cfg),
 		taskBatchUpdateCommand(cfg),
@@ -39,6 +41,16 @@ func TaskCommand(cfg *config.Config) *Command {
 	}
 
 	return cmd
+}
+
+// lookupTask finds a task by integer index_id or ULID string.
+func lookupTask(dir string, identifier string) (*denote.Task, error) {
+	// Try as integer index_id first
+	if num, err := strconv.Atoi(identifier); err == nil {
+		return task.FindTaskByID(dir, num)
+	}
+	// Otherwise treat as ULID / entity ID
+	return task.FindTaskByEntityID(dir, identifier)
 }
 
 // taskNewCommand creates a new task
@@ -116,13 +128,11 @@ func taskNewCommand(cfg *config.Config) *Command {
 
 		// Update metadata if provided
 		if priority != "" || dueDate != "" || project != "" || estimate > 0 || recurPattern != "" {
-			// Read the task
-			t, err := denote.ParseTaskFile(taskFile.Path)
+			t, err := denote.ParseTaskFile(taskFile.FilePath)
 			if err != nil {
 				return fmt.Errorf("failed to read created task: %v", err)
 			}
 
-			// Update fields
 			if priority != "" {
 				t.TaskMetadata.Priority = priority
 			}
@@ -130,7 +140,6 @@ func taskNewCommand(cfg *config.Config) *Command {
 				t.TaskMetadata.DueDate = dueDate
 			}
 			if project != "" {
-				// Resolve project argument to index_id
 				projectNum, err := strconv.Atoi(project)
 				if err != nil {
 					return fmt.Errorf("invalid project ID: %s (must be a numeric index_id)", project)
@@ -148,26 +157,137 @@ func taskNewCommand(cfg *config.Config) *Command {
 				t.TaskMetadata.Recur = recurPattern
 			}
 
-			// Write back
-			if err := task.UpdateTaskFile(taskFile.Path, t.TaskMetadata); err != nil {
+			if err := task.UpdateTaskFile(t.FilePath, t); err != nil {
 				return fmt.Errorf("failed to update task metadata: %v", err)
 			}
 		}
 
-		if !globalFlags.Quiet {
-			fmt.Printf("Created task: %s\n", taskFile.Path)
+		// Reload to get final state (after any metadata updates)
+		final, err := denote.ParseTaskFile(taskFile.FilePath)
+		if err != nil {
+			final = taskFile
 		}
 
-		// Launch TUI if requested
-		if globalFlags.TUI {
-			// TODO: Launch TUI in task view for this task
-			return fmt.Errorf("TUI integration not yet implemented")
+		if globalFlags.JSON {
+			data, _ := json.MarshalIndent(final, "", "  ")
+			fmt.Println(string(data))
+			return nil
+		}
+
+		if !globalFlags.Quiet {
+			fmt.Printf("Created task: %s\n", final.FilePath)
 		}
 
 		return nil
 	}
 
 	return cmd
+}
+
+// taskShowCommand shows details for a single task
+func taskShowCommand(cfg *config.Config) *Command {
+	return &Command{
+		Name:        "show",
+		Usage:       "atask show <id>",
+		Description: "Show task details by index_id or ULID",
+		Run: func(cmd *Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("usage: atask show <id>")
+			}
+
+			t, err := lookupTask(cfg.NotesDirectory, args[0])
+			if err != nil {
+				return err
+			}
+
+			if globalFlags.JSON {
+				data, err := json.MarshalIndent(t, "", "  ")
+				if err != nil {
+					return fmt.Errorf("failed to marshal JSON: %w", err)
+				}
+				fmt.Println(string(data))
+				return nil
+			}
+
+			// Text output
+			fmt.Printf("# %s (#%d)\n\n", t.Title, t.IndexID)
+
+			fmt.Printf("  ID:       %s\n", t.ID)
+			fmt.Printf("  Status:   %s\n", t.TaskMetadata.Status)
+			if t.TaskMetadata.Priority != "" {
+				fmt.Printf("  Priority: %s\n", t.TaskMetadata.Priority)
+			}
+			if t.TaskMetadata.DueDate != "" {
+				dueStr := t.TaskMetadata.DueDate
+				if denote.IsOverdue(t.TaskMetadata.DueDate) && t.TaskMetadata.Status != denote.TaskStatusDone {
+					dueStr += " (OVERDUE)"
+				}
+				fmt.Printf("  Due:      %s\n", dueStr)
+			}
+			if t.TaskMetadata.StartDate != "" {
+				fmt.Printf("  Start:    %s\n", t.TaskMetadata.StartDate)
+			}
+			if t.TaskMetadata.Area != "" {
+				fmt.Printf("  Area:     %s\n", t.TaskMetadata.Area)
+			}
+			if t.TaskMetadata.ProjectID != "" {
+				projectName := t.TaskMetadata.ProjectID
+				if p, err := task.FindProjectByID(cfg.NotesDirectory, func() int {
+					n, _ := strconv.Atoi(t.TaskMetadata.ProjectID)
+					return n
+				}()); err == nil {
+					projectName = fmt.Sprintf("%s (#%d)", p.Title, p.IndexID)
+				}
+				fmt.Printf("  Project:  %s\n", projectName)
+			}
+			if t.TaskMetadata.Estimate > 0 {
+				fmt.Printf("  Estimate: %d\n", t.TaskMetadata.Estimate)
+			}
+			if t.TaskMetadata.Assignee != "" {
+				fmt.Printf("  Assignee: %s\n", t.TaskMetadata.Assignee)
+			}
+			if t.TaskMetadata.Recur != "" {
+				fmt.Printf("  Recur:    %s\n", t.TaskMetadata.Recur)
+			}
+			fmt.Println()
+
+			if t.Created != "" {
+				fmt.Printf("  Created:  %s\n", t.Created)
+			}
+			if t.Modified != "" {
+				fmt.Printf("  Modified: %s\n", t.Modified)
+			}
+
+			var tagStrs []string
+			for _, tag := range t.Tags {
+				if tag != "task" {
+					tagStrs = append(tagStrs, "#"+tag)
+				}
+			}
+			if len(tagStrs) > 0 {
+				fmt.Printf("\n  Tags: %s\n", strings.Join(tagStrs, " "))
+			}
+
+			if len(t.RelatedPeople) > 0 || len(t.RelatedTasks) > 0 || len(t.RelatedIdeas) > 0 {
+				fmt.Println()
+				if len(t.RelatedPeople) > 0 {
+					fmt.Printf("  Related people: %s\n", strings.Join(t.RelatedPeople, ", "))
+				}
+				if len(t.RelatedTasks) > 0 {
+					fmt.Printf("  Related tasks:  %s\n", strings.Join(t.RelatedTasks, ", "))
+				}
+				if len(t.RelatedIdeas) > 0 {
+					fmt.Printf("  Related ideas:  %s\n", strings.Join(t.RelatedIdeas, ", "))
+				}
+			}
+
+			if strings.TrimSpace(t.Content) != "" {
+				fmt.Printf("\n---\n%s", t.Content)
+			}
+
+			return nil
+		},
+	}
 }
 
 // taskListCommand lists tasks
@@ -203,72 +323,51 @@ func taskListCommand(cfg *config.Config) *Command {
 	cmd.Flags.StringVar(&search, "search", "", "Search in task content (full-text)")
 	cmd.Flags.StringVar(&sortBy, "sort", "modified", "Sort by: modified, priority, due, created")
 	cmd.Flags.BoolVar(&reverse, "reverse", false, "Reverse sort order")
-	
-	// Convenience flags
+
 	cmd.Flags.BoolVar(&all, "a", false, "Show all tasks (short)")
 	cmd.Flags.StringVar(&sortBy, "s", "modified", "Sort by (short)")
 	cmd.Flags.BoolVar(&reverse, "r", false, "Reverse sort (short)")
 
 	cmd.Run = func(c *Command, args []string) error {
-		// Launch TUI if requested
 		if globalFlags.TUI {
-			// TODO: Launch TUI with these filters applied
 			return fmt.Errorf("TUI integration not yet implemented")
 		}
 
-		// Otherwise, list tasks in CLI
 		scanner := denote.NewScanner(cfg.NotesDirectory)
-		files, err := scanner.FindAllTaskAndProjectFiles()
+
+		// Get all projects for name lookup and hidden status
+		projects, _ := scanner.FindProjects()
+		projectNames := make(map[string]string)
+		hiddenProjectIDs := make(map[string]bool)
+		for _, p := range projects {
+			idStr := strconv.Itoa(p.IndexID)
+			projectNames[idStr] = p.Title
+			if p.ProjectMetadata.Status == denote.ProjectStatusPaused ||
+				p.ProjectMetadata.Status == denote.ProjectStatusCancelled ||
+				p.HasNotBegun() {
+				hiddenProjectIDs[idStr] = true
+			}
+		}
+
+		// Get all tasks
+		allTasks, err := scanner.FindTasks()
 		if err != nil {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
 
-		// First pass: collect all projects for name lookup and hidden status
-		projectNames := make(map[string]string) // index_id string -> Title
-		hiddenProjectIDs := make(map[string]bool)
-		for _, file := range files {
-			if file.IsProject() {
-				p, err := denote.ParseProjectFile(file.Path)
-				if err == nil {
-					idStr := strconv.Itoa(p.IndexID)
-					projectNames[idStr] = p.ProjectMetadata.Title
-					if p.ProjectMetadata.Status == denote.ProjectStatusPaused ||
-						p.ProjectMetadata.Status == denote.ProjectStatusCancelled ||
-						p.HasNotBegun() {
-						hiddenProjectIDs[idStr] = true
-					}
-				}
-			}
-		}
-
-		// Second pass: filter to tasks only
+		// Filter tasks
 		var tasks []denote.Task
-		for _, file := range files {
-			if !file.IsTask() {
-				continue
-			}
-
-			// Parse task metadata
-			t, err := denote.ParseTaskFile(file.Path)
-			if err != nil {
-				continue // Skip files we can't parse
-			}
-
-			// Apply filters
+		for _, t := range allTasks {
 			if !all && status == "" && t.TaskMetadata.Status != denote.TaskStatusOpen && t.TaskMetadata.Status != "" {
 				continue
 			}
-
 			if status != "" && t.TaskMetadata.Status != status {
 				continue
 			}
-
-			// Hide tasks belonging to inactive projects (paused, cancelled, or not yet begun)
 			if !all && t.TaskMetadata.ProjectID != "" && hiddenProjectIDs[t.TaskMetadata.ProjectID] {
 				continue
 			}
 
-			// Use command-specific area filter or fall back to global
 			filterArea := area
 			if filterArea == "" {
 				filterArea = globalFlags.Area
@@ -276,49 +375,38 @@ func taskListCommand(cfg *config.Config) *Command {
 			if filterArea != "" && t.TaskMetadata.Area != filterArea {
 				continue
 			}
-
 			if priority != "" && t.TaskMetadata.Priority != priority {
 				continue
 			}
-
 			if project != "" && t.TaskMetadata.ProjectID != project {
 				continue
 			}
-
 			if overdue && !denote.IsOverdue(t.TaskMetadata.DueDate) {
 				continue
 			}
-
 			if soon && !denote.IsDueSoon(t.TaskMetadata.DueDate, cfg.SoonHorizon) {
 				continue
 			}
-
-
-		if search != "" {
-			if !strings.Contains(strings.ToLower(t.Content), strings.ToLower(search)) {
-				continue
+			if search != "" {
+				if !strings.Contains(strings.ToLower(t.Content), strings.ToLower(search)) {
+					continue
+				}
 			}
-		}
 			tasks = append(tasks, *t)
 		}
 
-		// Sort tasks
 		sortTasks(tasks, sortBy, reverse)
 
-		// Display tasks
 		if globalFlags.JSON {
-			// Create JSON output structure
 			type TaskJSON struct {
 				denote.Task
 				ProjectName string `json:"project_name,omitempty"`
 			}
-
 			type Output struct {
 				Tasks []TaskJSON `json:"tasks"`
 				Count int        `json:"count"`
 			}
 
-			// Build JSON output with project names
 			jsonTasks := make([]TaskJSON, len(tasks))
 			for i, t := range tasks {
 				jsonTasks[i] = TaskJSON{
@@ -327,12 +415,7 @@ func taskListCommand(cfg *config.Config) *Command {
 				}
 			}
 
-			output := Output{
-				Tasks: jsonTasks,
-				Count: len(tasks),
-			}
-
-			// Marshal and print
+			output := Output{Tasks: jsonTasks, Count: len(tasks)}
 			jsonBytes, err := json.MarshalIndent(output, "", "  ")
 			if err != nil {
 				return fmt.Errorf("failed to marshal JSON: %w", err)
@@ -341,67 +424,56 @@ func taskListCommand(cfg *config.Config) *Command {
 			return nil
 		}
 
-		// Color setup
 		if globalFlags.NoColor || color.NoColor {
 			color.NoColor = true
 		}
 
-		// Status colors
 		doneColor := color.New(color.FgGreen)
 		overdueColor := color.New(color.FgRed, color.Bold)
 		priorityHighColor := color.New(color.FgRed, color.Bold)
 		priorityMedColor := color.New(color.FgYellow)
 
-		// Display header
 		if !globalFlags.Quiet {
 			fmt.Printf("Tasks (%d):\n\n", len(tasks))
 		}
 
-		// Display tasks with clean, TUI-like formatting
 		for _, t := range tasks {
-			// Status icon
-			status := "○"
+			statusIcon := "○"
 			switch t.TaskMetadata.Status {
 			case denote.TaskStatusDone:
-				status = "✓"
+				statusIcon = "✓"
 			case denote.TaskStatusPaused:
-				status = "⏸"
+				statusIcon = "⏸"
 			case denote.TaskStatusDelegated:
-				status = "→"
+				statusIcon = "→"
 			case denote.TaskStatusDropped:
-				status = "⨯"
+				statusIcon = "⨯"
 			}
 
-			// Priority with padding
-			priority := "    " // 4 spaces for alignment
+			priorityStr := "    "
 			if t.TaskMetadata.Priority != "" {
 				pStr := fmt.Sprintf("[%s]", t.TaskMetadata.Priority)
 				switch t.TaskMetadata.Priority {
 				case "p1":
-					priority = priorityHighColor.Sprint(pStr)
+					priorityStr = priorityHighColor.Sprint(pStr)
 				case "p2":
-					priority = priorityMedColor.Sprint(pStr)
+					priorityStr = priorityMedColor.Sprint(pStr)
 				default:
-					priority = pStr
+					priorityStr = pStr
 				}
 			}
 
-			// Due date with fixed width
-			due := "            " // 12 spaces for alignment
+			dueStr := "            "
 			if t.TaskMetadata.DueDate != "" {
-				dueStr := fmt.Sprintf("[%s]", t.TaskMetadata.DueDate)
+				ds := fmt.Sprintf("[%s]", t.TaskMetadata.DueDate)
 				if denote.IsOverdue(t.TaskMetadata.DueDate) {
-					due = overdueColor.Sprint(dueStr)
+					dueStr = overdueColor.Sprint(ds)
 				} else {
-					due = dueStr
+					dueStr = ds
 				}
 			}
 
-			// Title - truncate to 50 chars
-			title := t.TaskMetadata.Title
-			if title == "" {
-				title = t.File.Title
-			}
+			title := t.Title
 			if t.TaskMetadata.Recur != "" {
 				title = "↻ " + title
 			}
@@ -409,39 +481,33 @@ func taskListCommand(cfg *config.Config) *Command {
 				title = title[:47] + "..."
 			}
 
-			// Area - truncate to 10 chars
-			area := ""
+			areaStr := ""
 			if t.TaskMetadata.Area != "" {
-				area = t.TaskMetadata.Area
-				if len(area) > 10 {
-					area = area[:7] + "..."
+				areaStr = t.TaskMetadata.Area
+				if len(areaStr) > 10 {
+					areaStr = areaStr[:7] + "..."
 				}
 			}
 
-			// Project name (look up actual name)
 			projectName := ""
 			if t.TaskMetadata.ProjectID != "" {
 				if name, ok := projectNames[t.TaskMetadata.ProjectID]; ok && name != "" {
 					projectName = "→ " + name
 				} else {
-					// Fallback to ID if name not found
 					projectName = "→ " + t.TaskMetadata.ProjectID
 				}
 			}
 
-			// Build the line with fixed-width columns
-			// Format: ID Status Priority Due Title(50) Area(10) Project
 			line := fmt.Sprintf("%3d %s %s %s  %-50s %-10s %s",
-				t.TaskMetadata.IndexID,
-				status,
-				priority,
-				due,
+				t.IndexID,
+				statusIcon,
+				priorityStr,
+				dueStr,
 				title,
-				area,
+				areaStr,
 				projectName,
 			)
 
-			// Apply line coloring for done tasks
 			if t.TaskMetadata.Status == denote.TaskStatusDone {
 				fmt.Println(doneColor.Sprint(line))
 			} else {
@@ -459,16 +525,14 @@ func taskListCommand(cfg *config.Config) *Command {
 func sortTasks(tasks []denote.Task, sortBy string, reverse bool) {
 	sort.Slice(tasks, func(i, j int) bool {
 		var less bool
-		
+
 		switch sortBy {
 		case "priority":
-			// Sort by priority (p1 < p2 < p3 < "")
 			pi := priorityValue(tasks[i].TaskMetadata.Priority)
 			pj := priorityValue(tasks[j].TaskMetadata.Priority)
 			less = pi < pj
-			
+
 		case "due":
-			// Sort by due date (earliest first, empty last)
 			di := tasks[i].TaskMetadata.DueDate
 			dj := tasks[j].TaskMetadata.DueDate
 			if di == "" && dj == "" {
@@ -480,16 +544,16 @@ func sortTasks(tasks []denote.Task, sortBy string, reverse bool) {
 			} else {
 				less = di < dj
 			}
-			
+
 		case "created":
-			less = tasks[i].File.ID < tasks[j].File.ID
-			
+			less = tasks[i].ID < tasks[j].ID
+
 		case "modified":
 			fallthrough
 		default:
 			less = tasks[i].ModTime.After(tasks[j].ModTime)
 		}
-		
+
 		if reverse {
 			return !less
 		}
@@ -507,69 +571,80 @@ func priorityValue(p string) int {
 	case "p3":
 		return 3
 	default:
-		return 999 // No priority sorts last
+		return 999
 	}
 }
 
-// parseTaskIDs parses task ID arguments (supports ranges and lists)
-func parseTaskIDs(args []string) ([]int, error) {
-	var numbers []int
-	seen := make(map[int]bool)
+// parseTaskIdentifiers parses task ID arguments, returning integer IDs and
+// string entity IDs (ULIDs) separately. Supports ranges and comma-separated
+// lists for integer IDs.
+func parseTaskIdentifiers(args []string) (intIDs []int, entityIDs []string, err error) {
+	seenInt := make(map[int]bool)
+	seenStr := make(map[string]bool)
 
 	for _, arg := range args {
-		// Handle comma-separated lists
 		parts := strings.Split(arg, ",")
 		for _, part := range parts {
 			part = strings.TrimSpace(part)
-			
-			// Handle ranges (e.g., "3-5")
+
+			// Check if it looks like an integer range (e.g. "1-5")
 			if strings.Contains(part, "-") && !strings.HasPrefix(part, "-") {
 				rangeParts := strings.Split(part, "-")
-				if len(rangeParts) != 2 {
-					return nil, fmt.Errorf("invalid range: %s", part)
-				}
-				
-				start, err := strconv.Atoi(strings.TrimSpace(rangeParts[0]))
-				if err != nil {
-					return nil, fmt.Errorf("invalid range start: %s", rangeParts[0])
-				}
-				
-				end, err := strconv.Atoi(strings.TrimSpace(rangeParts[1]))
-				if err != nil {
-					return nil, fmt.Errorf("invalid range end: %s", rangeParts[1])
-				}
-				
-				if start > end {
-					return nil, fmt.Errorf("invalid range: %d > %d", start, end)
-				}
-				
-				for i := start; i <= end; i++ {
-					if !seen[i] {
-						numbers = append(numbers, i)
-						seen[i] = true
+				if len(rangeParts) == 2 {
+					start, errS := strconv.Atoi(strings.TrimSpace(rangeParts[0]))
+					end, errE := strconv.Atoi(strings.TrimSpace(rangeParts[1]))
+					if errS == nil && errE == nil {
+						if start > end {
+							return nil, nil, fmt.Errorf("invalid range: %d > %d", start, end)
+						}
+						for i := start; i <= end; i++ {
+							if !seenInt[i] {
+								intIDs = append(intIDs, i)
+								seenInt[i] = true
+							}
+						}
+						continue
 					}
 				}
-			} else {
-				// Single number
-				num, err := strconv.Atoi(part)
-				if err != nil {
-					return nil, fmt.Errorf("invalid task ID: %s", part)
+				// Not a valid integer range — treat as entity ID (ULIDs contain hyphens? No, but fall through)
+			}
+
+			// Try as integer
+			if num, err := strconv.Atoi(part); err == nil {
+				if !seenInt[num] {
+					intIDs = append(intIDs, num)
+					seenInt[num] = true
 				}
-				if !seen[num] {
-					numbers = append(numbers, num)
-					seen[num] = true
+			} else {
+				// Treat as ULID / entity ID
+				if !seenStr[part] {
+					entityIDs = append(entityIDs, part)
+					seenStr[part] = true
 				}
 			}
 		}
 	}
 
-	sort.Ints(numbers)
-	return numbers, nil
+	sort.Ints(intIDs)
+	return intIDs, entityIDs, nil
 }
 
-// Stub implementations for other commands
+// parseTaskIDs parses task ID arguments (supports ranges and lists).
+// Only returns integer IDs — use parseTaskIdentifiers for ULID support.
+func parseTaskIDs(args []string) ([]int, error) {
+	intIDs, entityIDs, err := parseTaskIdentifiers(args)
+	if err != nil {
+		return nil, err
+	}
+	if len(entityIDs) > 0 {
+		return nil, fmt.Errorf("invalid task ID: %s", entityIDs[0])
+	}
+	return intIDs, nil
+}
+
 func taskUpdateCommand(cfg *config.Config) *Command {
 	var (
+		title        string
 		priority     string
 		due          string
 		begin        string
@@ -593,6 +668,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 		Flags:       flag.NewFlagSet("task-update", flag.ExitOnError),
 	}
 
+	cmd.Flags.StringVar(&title, "title", "", "Set title")
 	cmd.Flags.StringVar(&priority, "p", "", "Set priority (p1, p2, p3)")
 	cmd.Flags.StringVar(&priority, "priority", "", "Set priority (p1, p2, p3)")
 	cmd.Flags.StringVar(&due, "due", "", "Set due date")
@@ -603,20 +679,18 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 	cmd.Flags.StringVar(&status, "status", "", "Set status (open, done, paused, delegated, dropped)")
 	cmd.Flags.StringVar(&recur, "recur", "", "Set recurrence (use 'none' to clear)")
 
-	// Cross-app relationship flags
-	cmd.Flags.StringVar(&addPerson, "add-person", "", "Add related contact (Denote ID)")
-	cmd.Flags.StringVar(&removePerson, "remove-person", "", "Remove related contact (Denote ID)")
-	cmd.Flags.StringVar(&addTask, "add-task", "", "Add related task (Denote ID)")
-	cmd.Flags.StringVar(&removeTask, "remove-task", "", "Remove related task (Denote ID)")
-	cmd.Flags.StringVar(&addIdea, "add-idea", "", "Add related idea (Denote ID)")
-	cmd.Flags.StringVar(&removeIdea, "remove-idea", "", "Remove related idea (Denote ID)")
+	cmd.Flags.StringVar(&addPerson, "add-person", "", "Add related contact (ULID)")
+	cmd.Flags.StringVar(&removePerson, "remove-person", "", "Remove related contact (ULID)")
+	cmd.Flags.StringVar(&addTask, "add-task", "", "Add related task (ULID)")
+	cmd.Flags.StringVar(&removeTask, "remove-task", "", "Remove related task (ULID)")
+	cmd.Flags.StringVar(&addIdea, "add-idea", "", "Add related idea (ULID)")
+	cmd.Flags.StringVar(&removeIdea, "remove-idea", "", "Remove related idea (ULID)")
 
 	cmd.Run = func(c *Command, args []string) error {
 		if len(args) == 0 {
 			return fmt.Errorf("task IDs required")
 		}
 
-		// Validate recurrence pattern if provided
 		var recurPattern string
 		var clearRecur bool
 		if recur != "" {
@@ -631,43 +705,54 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 			}
 		}
 
-		// Parse task IDs
-		numbers, err := parseTaskIDs(args)
+		intIDs, entityIDs, err := parseTaskIdentifiers(args)
 		if err != nil {
 			return err
 		}
 
-		// Get all tasks
 		scanner := denote.NewScanner(cfg.NotesDirectory)
-		files, err := scanner.FindAllTaskAndProjectFiles()
+		allTasks, err := scanner.FindTasks()
 		if err != nil {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
 
-		// Build index of tasks by index_id
 		tasksByID := make(map[int]*denote.Task)
-		for _, file := range files {
-			if !file.IsTask() {
-				continue
-			}
-			t, err := denote.ParseTaskFile(file.Path)
-			if err != nil {
-				continue
-			}
-			tasksByID[t.TaskMetadata.IndexID] = t
+		tasksByEntityID := make(map[string]*denote.Task)
+		for _, t := range allTasks {
+			tasksByID[t.IndexID] = t
+			tasksByEntityID[t.ID] = t
 		}
 
-		// Update each task
-		updated := 0
-		for _, id := range numbers {
+		// Track updated tasks for JSON output
+		var updatedTasks []*denote.Task
+
+		// Collect tasks to update from both integer and entity IDs
+		var tasksToUpdate []*denote.Task
+		for _, id := range intIDs {
 			t, ok := tasksByID[id]
 			if !ok {
 				fmt.Fprintf(os.Stderr, "Task with ID %d not found\n", id)
 				continue
 			}
+			tasksToUpdate = append(tasksToUpdate, t)
+		}
+		for _, eid := range entityIDs {
+			t, ok := tasksByEntityID[eid]
+			if !ok {
+				fmt.Fprintf(os.Stderr, "Task with ID %s not found\n", eid)
+				continue
+			}
+			tasksToUpdate = append(tasksToUpdate, t)
+		}
 
-			// Apply updates
+		updated := 0
+		for _, t := range tasksToUpdate {
+
 			changed := false
+			if title != "" {
+				t.Title = title
+				changed = true
+			}
 			if priority != "" {
 				t.TaskMetadata.Priority = priority
 				changed = true
@@ -675,7 +760,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 			if due != "" {
 				parsedDue, err := denote.ParseNaturalDate(due)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Invalid due date for task ID %d: %v\n", id, err)
+					fmt.Fprintf(os.Stderr, "Invalid due date for task ID %d: %v\n", t.IndexID, err)
 					continue
 				}
 				t.TaskMetadata.DueDate = parsedDue
@@ -684,7 +769,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 			if begin != "" {
 				parsedBegin, err := denote.ParseNaturalDate(begin)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Invalid begin date for task ID %d: %v\n", id, err)
+					fmt.Fprintf(os.Stderr, "Invalid begin date for task ID %d: %v\n", t.IndexID, err)
 					continue
 				}
 				t.TaskMetadata.StartDate = parsedBegin
@@ -695,15 +780,14 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 				changed = true
 			}
 			if project != "" {
-				// Resolve project argument to index_id
 				projectNum, err := strconv.Atoi(project)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Invalid project ID for task %d: %s (must be numeric)\n", id, project)
+					fmt.Fprintf(os.Stderr, "Invalid project ID for task %d: %s (must be numeric)\n", t.IndexID, project)
 					continue
 				}
 				p, err := task.FindProjectByID(cfg.NotesDirectory, projectNum)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Project %d not found for task %d\n", projectNum, id)
+					fmt.Fprintf(os.Stderr, "Project %d not found for task %d\n", projectNum, t.IndexID)
 					continue
 				}
 				t.TaskMetadata.ProjectID = strconv.Itoa(p.IndexID)
@@ -725,42 +809,69 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 				changed = true
 			}
 
-			// Apply cross-app relationship updates
+			// Cross-app relationship updates
 			if addPerson != "" {
-				t.TaskMetadata.RelatedPeople = addToSlice(t.TaskMetadata.RelatedPeople, addPerson)
+				acore.AddRelation(&t.RelatedPeople, addPerson)
+				acore.SyncRelation(t.Type, t.ID, addPerson)
 				changed = true
 			}
 			if removePerson != "" {
-				t.TaskMetadata.RelatedPeople = removeFromSlice(t.TaskMetadata.RelatedPeople, removePerson)
+				acore.RemoveRelation(&t.RelatedPeople, removePerson)
+				acore.UnsyncRelation(t.Type, t.ID, removePerson)
 				changed = true
 			}
 			if addTask != "" {
-				t.TaskMetadata.RelatedTasks = addToSlice(t.TaskMetadata.RelatedTasks, addTask)
+				acore.AddRelation(&t.RelatedTasks, addTask)
+				acore.SyncRelation(t.Type, t.ID, addTask)
 				changed = true
 			}
 			if removeTask != "" {
-				t.TaskMetadata.RelatedTasks = removeFromSlice(t.TaskMetadata.RelatedTasks, removeTask)
+				acore.RemoveRelation(&t.RelatedTasks, removeTask)
+				acore.UnsyncRelation(t.Type, t.ID, removeTask)
 				changed = true
 			}
 			if addIdea != "" {
-				t.TaskMetadata.RelatedIdeas = addToSlice(t.TaskMetadata.RelatedIdeas, addIdea)
+				acore.AddRelation(&t.RelatedIdeas, addIdea)
+				acore.SyncRelation(t.Type, t.ID, addIdea)
 				changed = true
 			}
 			if removeIdea != "" {
-				t.TaskMetadata.RelatedIdeas = removeFromSlice(t.TaskMetadata.RelatedIdeas, removeIdea)
+				acore.RemoveRelation(&t.RelatedIdeas, removeIdea)
+				acore.UnsyncRelation(t.Type, t.ID, removeIdea)
 				changed = true
 			}
 
 			if changed {
-				if err := task.UpdateTaskFile(t.File.Path, t.TaskMetadata); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to update task ID %d: %v\n", id, err)
+				if err := task.UpdateTaskFile(t.FilePath, t); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to update task ID %d: %v\n", t.IndexID, err)
 					continue
 				}
 				updated++
-				if !globalFlags.Quiet {
-					fmt.Printf("Updated task ID %d: %s\n", id, t.TaskMetadata.Title)
+				updatedTasks = append(updatedTasks, t)
+				if !globalFlags.JSON && !globalFlags.Quiet {
+					fmt.Printf("Updated task ID %d: %s\n", t.IndexID, t.Title)
 				}
 			}
+		}
+
+		if globalFlags.JSON && len(updatedTasks) > 0 {
+			// Reload from disk for accurate output
+			var results []*denote.Task
+			for _, t := range updatedTasks {
+				if reloaded, err := denote.ParseTaskFile(t.FilePath); err == nil {
+					results = append(results, reloaded)
+				} else {
+					results = append(results, t)
+				}
+			}
+			if len(results) == 1 {
+				data, _ := json.MarshalIndent(results[0], "", "  ")
+				fmt.Println(string(data))
+			} else {
+				data, _ := json.MarshalIndent(results, "", "  ")
+				fmt.Println(string(data))
+			}
+			return nil
 		}
 
 		if updated == 0 && !globalFlags.Quiet {
@@ -785,54 +896,56 @@ func taskDoneCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("task IDs required")
 		}
 
-		// Parse task IDs
-		numbers, err := parseTaskIDs(args)
+		intIDs, entityIDs, err := parseTaskIdentifiers(args)
 		if err != nil {
 			return err
 		}
 
-		// Get all tasks
 		scanner := denote.NewScanner(cfg.NotesDirectory)
-		files, err := scanner.FindAllTaskAndProjectFiles()
+		allTasks, err := scanner.FindTasks()
 		if err != nil {
 			return fmt.Errorf("failed to scan directory: %v", err)
 		}
 
-		// Build index of tasks by index_id
 		tasksByID := make(map[int]*denote.Task)
-		for _, file := range files {
-			if !file.IsTask() {
-				continue
-			}
-			t, err := denote.ParseTaskFile(file.Path)
-			if err != nil {
-				continue
-			}
-			tasksByID[t.TaskMetadata.IndexID] = t
+		tasksByEntityID := make(map[string]*denote.Task)
+		for _, t := range allTasks {
+			tasksByID[t.IndexID] = t
+			tasksByEntityID[t.ID] = t
 		}
 
-		// Mark tasks as done
-		updated := 0
-		for _, id := range numbers {
+		var tasksToUpdate []*denote.Task
+		for _, id := range intIDs {
 			t, ok := tasksByID[id]
 			if !ok {
 				fmt.Fprintf(os.Stderr, "Task with ID %d not found\n", id)
 				continue
 			}
+			tasksToUpdate = append(tasksToUpdate, t)
+		}
+		for _, eid := range entityIDs {
+			t, ok := tasksByEntityID[eid]
+			if !ok {
+				fmt.Fprintf(os.Stderr, "Task with ID %s not found\n", eid)
+				continue
+			}
+			tasksToUpdate = append(tasksToUpdate, t)
+		}
 
+		updated := 0
+		for _, t := range tasksToUpdate {
 			t.TaskMetadata.Status = denote.TaskStatusDone
-			if err := task.UpdateTaskFile(t.File.Path, t.TaskMetadata); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to mark task ID %d as done: %v\n", id, err)
+			if err := task.UpdateTaskFile(t.FilePath, t); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to mark task %d as done: %v\n", t.IndexID, err)
 				continue
 			}
 			updated++
 			if !globalFlags.Quiet {
-				fmt.Printf("✓ Task ID %d marked as done: %s\n", id, t.TaskMetadata.Title)
+				fmt.Printf("✓ Task ID %d marked as done: %s\n", t.IndexID, t.Title)
 			}
 
-			// Handle recurrence
 			if err := handleRecurrence(cfg, t); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: failed to create recurring task for ID %d: %v\n", id, err)
+				fmt.Fprintf(os.Stderr, "Warning: failed to create recurring task for ID %d: %v\n", t.IndexID, err)
 			}
 		}
 
@@ -858,46 +971,20 @@ func taskLogCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("task ID and message required")
 		}
 
-		// Parse task ID
-		taskNum, err := strconv.Atoi(args[0])
+		t, err := lookupTask(cfg.NotesDirectory, args[0])
 		if err != nil {
-			return fmt.Errorf("invalid task ID: %s", args[0])
+			return err
 		}
 
-		// Join remaining args as log message
 		message := strings.Join(args[1:], " ")
 
-		// Get all tasks
-		scanner := denote.NewScanner(cfg.NotesDirectory)
-		files, err := scanner.FindAllTaskAndProjectFiles()
-		if err != nil {
-			return fmt.Errorf("failed to scan directory: %v", err)
+		if err := denote.AddLogEntry(t.FilePath, message); err != nil {
+			return fmt.Errorf("failed to add log entry: %v", err)
 		}
-
-		// Find the task by index_id
-		for _, file := range files {
-			if !file.IsTask() {
-				continue
-			}
-			// Parse the task
-			task, err := denote.ParseTaskFile(file.Path)
-			if err != nil {
-				continue
-			}
-			if task.TaskMetadata.IndexID == taskNum {
-				// Add log entry
-				if err := denote.AddLogEntry(file.Path, message); err != nil {
-					return fmt.Errorf("failed to add log entry: %v", err)
-				}
-
-				if !globalFlags.Quiet {
-					fmt.Printf("Added log entry to task ID %d: %s\n", taskNum, task.TaskMetadata.Title)
-				}
-				return nil
-			}
+		if !globalFlags.Quiet {
+			fmt.Printf("Added log entry to task ID %d: %s\n", t.IndexID, t.Title)
 		}
-
-		return fmt.Errorf("task with ID %d not found", taskNum)
+		return nil
 	}
 
 	return cmd
@@ -925,7 +1012,6 @@ func taskDeleteCommand(cfg *config.Config) *Command {
 	}
 }
 
-// taskQueryCommand allows complex filtering with boolean expressions
 func taskQueryCommand(cfg *config.Config) *Command {
 	var sortBy string
 	var reverse bool
@@ -946,30 +1032,25 @@ func taskQueryCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("query expression required\n\nExamples:\n  atask query \"status:open AND priority:p1\"\n  atask query \"area:work AND (priority:p1 OR priority:p2)\"\n  atask query \"due:soon AND NOT status:done\"")
 		}
 
-		// Query is the first argument (should be quoted if it contains spaces)
 		queryStr := args[0]
 
-		// Parse the query
 		ast, err := query.Parse(queryStr)
 		if err != nil {
 			return fmt.Errorf("query parse error: %v", err)
 		}
 
-		// Get all tasks
 		scanner := denote.NewScanner(cfg.NotesDirectory)
 		allTasks, err := scanner.FindTasks()
 		if err != nil {
 			return fmt.Errorf("failed to find tasks: %v", err)
 		}
 
-		// Get project names for display
 		projects, _ := scanner.FindProjects()
-		projectNames := make(map[string]string) // index_id string -> Title
+		projectNames := make(map[string]string)
 		for _, p := range projects {
-			projectNames[strconv.Itoa(p.IndexID)] = p.ProjectMetadata.Title
+			projectNames[strconv.Itoa(p.IndexID)] = p.Title
 		}
 
-		// Evaluate query against all tasks
 		var tasks []denote.Task
 		for _, t := range allTasks {
 			if ast.Evaluate(t, cfg) {
@@ -977,23 +1058,18 @@ func taskQueryCommand(cfg *config.Config) *Command {
 			}
 		}
 
-		// Sort tasks
 		sortTasks(tasks, sortBy, reverse)
 
-		// Display tasks
 		if globalFlags.JSON {
-			// Create JSON output structure
 			type TaskJSON struct {
 				denote.Task
 				ProjectName string `json:"project_name,omitempty"`
 			}
-
 			type Output struct {
 				Tasks []TaskJSON `json:"tasks"`
 				Count int        `json:"count"`
 			}
 
-			// Build JSON output with project names
 			jsonTasks := make([]TaskJSON, len(tasks))
 			for i, t := range tasks {
 				jsonTasks[i] = TaskJSON{
@@ -1002,12 +1078,7 @@ func taskQueryCommand(cfg *config.Config) *Command {
 				}
 			}
 
-			output := Output{
-				Tasks: jsonTasks,
-				Count: len(tasks),
-			}
-
-			// Marshal and print
+			output := Output{Tasks: jsonTasks, Count: len(tasks)}
 			jsonBytes, err := json.MarshalIndent(output, "", "  ")
 			if err != nil {
 				return fmt.Errorf("failed to marshal JSON: %w", err)
@@ -1016,62 +1087,54 @@ func taskQueryCommand(cfg *config.Config) *Command {
 			return nil
 		}
 
-		// Color setup
 		if globalFlags.NoColor || color.NoColor {
 			color.NoColor = true
 		}
 
-		// Status colors
 		doneColor := color.New(color.FgGreen)
 		overdueColor := color.New(color.FgRed, color.Bold)
 		priorityHighColor := color.New(color.FgRed, color.Bold)
 		priorityMedColor := color.New(color.FgYellow)
 
-		// Display header
 		if !globalFlags.Quiet {
 			fmt.Printf("Tasks (%d):\n\n", len(tasks))
 		}
 
-		// Display tasks with clean, TUI-like formatting
 		for _, t := range tasks {
-			// Status icon
-			status := "○"
+			statusIcon := "○"
 			switch t.TaskMetadata.Status {
 			case denote.TaskStatusDone:
-				status = doneColor.Sprint("✓")
+				statusIcon = doneColor.Sprint("✓")
 			case denote.TaskStatusPaused:
-				status = "⏸"
+				statusIcon = "⏸"
 			case denote.TaskStatusDropped:
-				status = "⨯"
+				statusIcon = "⨯"
 			case denote.TaskStatusDelegated:
-				status = "→"
+				statusIcon = "→"
 			}
 
-			// Priority with color
-			priority := "   "
+			priorityStr := "   "
 			if t.TaskMetadata.Priority != "" {
 				switch t.TaskMetadata.Priority {
 				case denote.PriorityP1:
-					priority = priorityHighColor.Sprintf("[%s]", t.TaskMetadata.Priority)
+					priorityStr = priorityHighColor.Sprintf("[%s]", t.TaskMetadata.Priority)
 				case denote.PriorityP2:
-					priority = priorityMedColor.Sprintf("[%s]", t.TaskMetadata.Priority)
+					priorityStr = priorityMedColor.Sprintf("[%s]", t.TaskMetadata.Priority)
 				default:
-					priority = fmt.Sprintf("[%s]", t.TaskMetadata.Priority)
+					priorityStr = fmt.Sprintf("[%s]", t.TaskMetadata.Priority)
 				}
 			}
 
-			// Due date with color if overdue
-			due := "            "
+			dueStr := "            "
 			if t.TaskMetadata.DueDate != "" {
 				if denote.IsOverdue(t.TaskMetadata.DueDate) && t.TaskMetadata.Status != denote.TaskStatusDone {
-					due = overdueColor.Sprintf("[%s]", t.TaskMetadata.DueDate)
+					dueStr = overdueColor.Sprintf("[%s]", t.TaskMetadata.DueDate)
 				} else {
-					due = fmt.Sprintf("[%s]", t.TaskMetadata.DueDate)
+					dueStr = fmt.Sprintf("[%s]", t.TaskMetadata.DueDate)
 				}
 			}
 
-			// Title (truncate if too long)
-			title := t.TaskMetadata.Title
+			title := t.Title
 			if t.TaskMetadata.Recur != "" {
 				title = "↻ " + title
 			}
@@ -1079,31 +1142,27 @@ func taskQueryCommand(cfg *config.Config) *Command {
 				title = title[:47] + "..."
 			}
 
-			// Area
-			area := ""
+			areaStr := ""
 			if t.TaskMetadata.Area != "" {
-				area = t.TaskMetadata.Area
+				areaStr = t.TaskMetadata.Area
 			}
 
-			// Project name
 			projectName := ""
 			if t.TaskMetadata.ProjectID != "" {
 				if name, ok := projectNames[t.TaskMetadata.ProjectID]; ok && name != "" {
 					projectName = "→ " + name
 				} else {
-					// Fallback to ID if name not found
 					projectName = "→ " + t.TaskMetadata.ProjectID
 				}
 			}
 
-			// Build the line with fixed-width columns
 			line := fmt.Sprintf("%3d %s %s %s  %-50s %-10s %s",
-				t.TaskMetadata.IndexID,
-				status,
-				priority,
-				due,
+				t.IndexID,
+				statusIcon,
+				priorityStr,
+				dueStr,
 				title,
-				area,
+				areaStr,
 				projectName,
 			)
 
@@ -1116,7 +1175,6 @@ func taskQueryCommand(cfg *config.Config) *Command {
 	return cmd
 }
 
-// taskBatchUpdateCommand updates multiple tasks based on query conditions
 func taskBatchUpdateCommand(cfg *config.Config) *Command {
 	var (
 		whereClause string
@@ -1152,25 +1210,21 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("--where clause required\n\nExample:\n  atask batch-update --where \"status:open AND due:past\" --status paused")
 		}
 
-		// Check that at least one field to update is specified
 		if priority == "" && due == "" && area == "" && project == "" && estimate == -1 && status == "" && recur == "" {
 			return fmt.Errorf("at least one field to update must be specified (--priority, --due, --area, --project, --estimate, --status, or --recur)")
 		}
 
-		// Parse the where clause
 		ast, err := query.Parse(whereClause)
 		if err != nil {
 			return fmt.Errorf("failed to parse --where clause: %v", err)
 		}
 
-		// Get all tasks
 		scanner := denote.NewScanner(cfg.NotesDirectory)
 		allTasks, err := scanner.FindTasks()
 		if err != nil {
 			return fmt.Errorf("failed to find tasks: %v", err)
 		}
 
-		// Filter tasks using the query
 		var matchingTasks []*denote.Task
 		for _, t := range allTasks {
 			if ast.Evaluate(t, cfg) {
@@ -1183,14 +1237,12 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 			return nil
 		}
 
-		// Show what will be updated
 		fmt.Printf("Found %d matching task(s):\n\n", len(matchingTasks))
 		for _, t := range matchingTasks {
-			fmt.Printf("  %d: %s\n", t.TaskMetadata.IndexID, t.TaskMetadata.Title)
+			fmt.Printf("  %d: %s\n", t.IndexID, t.Title)
 		}
 		fmt.Println()
 
-		// Parse due date if provided
 		var parsedDue string
 		if due != "" {
 			parsedDue, err = denote.ParseNaturalDate(due)
@@ -1199,7 +1251,6 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 			}
 		}
 
-		// Validate recurrence pattern if provided
 		var recurPattern string
 		var clearRecur bool
 		if recur != "" {
@@ -1214,7 +1265,6 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 			}
 		}
 
-		// Show what changes will be made
 		changes := []string{}
 		if priority != "" {
 			changes = append(changes, fmt.Sprintf("priority → %s", priority))
@@ -1251,7 +1301,6 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 			return nil
 		}
 
-		// Apply updates
 		updated := 0
 		for _, t := range matchingTasks {
 			changed := false
@@ -1269,7 +1318,6 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 				changed = true
 			}
 			if project != "" {
-				// Resolve project argument to index_id
 				projectNum, err := strconv.Atoi(project)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Invalid project ID: %s (must be numeric)\n", project)
@@ -1300,16 +1348,15 @@ func taskBatchUpdateCommand(cfg *config.Config) *Command {
 			}
 
 			if changed {
-				if err := task.UpdateTaskFile(t.File.Path, t.TaskMetadata); err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to update task %d: %v\n", t.TaskMetadata.IndexID, err)
+				if err := task.UpdateTaskFile(t.FilePath, t); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to update task %d: %v\n", t.IndexID, err)
 					continue
 				}
 				updated++
 
-				// Handle recurrence when setting status to done
 				if status == denote.TaskStatusDone {
 					if err := handleRecurrence(cfg, t); err != nil {
-						fmt.Fprintf(os.Stderr, "Warning: failed to create recurring task for ID %d: %v\n", t.TaskMetadata.IndexID, err)
+						fmt.Fprintf(os.Stderr, "Warning: failed to create recurring task for ID %d: %v\n", t.IndexID, err)
 					}
 				}
 			}
@@ -1328,13 +1375,11 @@ func handleRecurrence(cfg *config.Config, t *denote.Task) error {
 		return nil
 	}
 
-	// Parse the current due date
 	currentDue, err := time.ParseInLocation("2006-01-02", t.TaskMetadata.DueDate, time.Now().Location())
 	if err != nil {
 		return fmt.Errorf("failed to parse due date %q: %w", t.TaskMetadata.DueDate, err)
 	}
 
-	// Compute next due date
 	nextDue, err := recurrence.NextDueDate(t.TaskMetadata.Recur, currentDue)
 	if err != nil {
 		return fmt.Errorf("failed to compute next due date: %w", err)
@@ -1342,7 +1387,6 @@ func handleRecurrence(cfg *config.Config, t *denote.Task) error {
 
 	newDueStr := nextDue.Format("2006-01-02")
 
-	// Clone the task
 	newTask, err := task.CloneTaskForRecurrence(cfg.NotesDirectory, t, newDueStr)
 	if err != nil {
 		return fmt.Errorf("failed to clone task: %w", err)
@@ -1350,7 +1394,7 @@ func handleRecurrence(cfg *config.Config, t *denote.Task) error {
 
 	if !globalFlags.Quiet {
 		fmt.Printf("↻ Created recurring task ID %d: %s (due %s)\n",
-			newTask.TaskMetadata.IndexID, newTask.TaskMetadata.Title, newDueStr)
+			newTask.IndexID, newTask.Title, newDueStr)
 	}
 
 	return nil

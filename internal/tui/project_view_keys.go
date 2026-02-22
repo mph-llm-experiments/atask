@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -19,7 +18,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.editBuffer = ""
 			m.editCursor = 0
 			m.editCursor = 0
-			
+
 		case "enter":
 			// Handle project field updates - map single letters to field names
 			fieldMap := map[string]string{
@@ -31,11 +30,11 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				"a": "area",
 				"t": "tags",
 			}
-			
+
 			if fieldName, ok := fieldMap[m.editingField]; ok {
 				var updateErr error
 				var updateValue string
-				
+
 				switch m.editingField {
 				case "p":
 					if m.editBuffer == "" || m.editBuffer == "0" {
@@ -53,9 +52,9 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				default:
 					updateValue = m.editBuffer
 				}
-				
+
 				updateErr = m.updateProjectField(fieldName, updateValue)
-				
+
 				if updateErr != nil {
 					m.statusMsg = fmt.Sprintf(ErrorFormat, updateErr)
 				} else {
@@ -65,16 +64,16 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					} else {
 						m.statusMsg = fmt.Sprintf("Updated %s", fieldName)
 					}
-					
+
 					// Force reload the project from disk to ensure we show the updated data
 					if project, err := denote.ParseProjectFile(m.viewingFile.Path); err == nil {
 						m.viewingProject = project
 						// Update the file title if it changed
-						if project.ProjectMetadata.Title != "" {
-							m.viewingFile.Title = project.ProjectMetadata.Title
+						if project.Title != "" {
+							m.viewingFile.Title = project.Title
 						}
 					}
-					
+
 					// Re-sort if we updated a field that could affect order or visibility
 					if m.editingField == "d" || m.editingField == "p" || m.editingField == "B" {
 						m.applyFilters()
@@ -86,7 +85,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.editingField = ""
 			m.editBuffer = ""
 			m.editCursor = 0
-			
+
 		case "backspace", "ctrl+h":
 			if m.editCursor > 0 && len(m.editBuffer) > 0 {
 				m.editBuffer = m.editBuffer[:m.editCursor-1] + m.editBuffer[m.editCursor:]
@@ -145,7 +144,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	
+
 	// Normal navigation when not editing
 	switch msg.String() {
 	case "q", "esc":
@@ -160,7 +159,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.applyFilters()
 		m.sortFiles()
 		m.loadVisibleMetadata()
-		
+
 	case "tab":
 		// Switch between tabs
 		if m.projectViewTab == 0 {
@@ -168,7 +167,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.projectViewTab = 0
 		}
-		
+
 	case "E":
 		// Edit project file in external editor (uppercase for Edit action)
 		if m.config.Editor != "" && m.viewingFile != nil {
@@ -176,28 +175,28 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.statusMsg = "No editor configured"
 		}
-		
+
 	// Field edit hotkeys - work on overview tab
 	case "T":
 		// Title field (uppercase - different from tags)
 		if m.projectViewTab == 0 {
-			m.editingField = "T"  // Title
-			m.editBuffer = m.viewingProject.ProjectMetadata.Title
+			m.editingField = "T" // Title
+			m.editBuffer = m.viewingProject.Title
 			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter title:"
 		}
-		
+
 	case "p":
 		if m.projectViewTab == 0 {
-			m.editingField = "p"  // Use single letter like renderField expects
+			m.editingField = "p" // Use single letter like renderField expects
 			m.editBuffer = strings.TrimPrefix(m.viewingProject.ProjectMetadata.Priority, "p")
 			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter priority (0 to clear, 1/2/3):"
 		}
-		
+
 	case "s":
 		if m.projectViewTab == 0 {
-			m.editingField = "s"  // Use single letter
+			m.editingField = "s" // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.Status
 			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter status (active/completed/paused/cancelled):"
@@ -206,10 +205,10 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = ModeStateMenu
 			return m, nil
 		}
-		
+
 	case "d":
 		if m.projectViewTab == 0 {
-			m.editingField = "d"  // Use single letter
+			m.editingField = "d" // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.DueDate
 			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter due date (YYYY-MM-DD or relative: 1d, 1w, tomorrow):"
@@ -222,22 +221,22 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter begin date (YYYY-MM-DD or relative: 1d, 1w, tomorrow):"
 		}
-		
+
 	case "a":
 		if m.projectViewTab == 0 {
-			m.editingField = "a"  // Use single letter
+			m.editingField = "a" // Use single letter
 			m.editBuffer = m.viewingProject.ProjectMetadata.Area
 			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter area:"
 		}
-		
+
 	case "t":
 		// Tags field (lowercase for action)
 		if m.projectViewTab == 0 {
-			m.editingField = "t"  // Tags
+			m.editingField = "t" // Tags
 			// Filter out system tags
 			var userTags []string
-			for _, tag := range m.viewingProject.ProjectMetadata.Tags {
+			for _, tag := range m.viewingProject.Tags {
 				if tag != "task" && tag != "project" {
 					userTags = append(userTags, tag)
 				}
@@ -258,7 +257,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.editCursor = len(m.editBuffer)
 			m.statusMsg = "Enter tags (space-separated):"
 		}
-		
+
 	case "n":
 		// Create new task with this project pre-selected
 		m.mode = ModeCreate
@@ -274,7 +273,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.creatingFromProject = true
 		m.statusMsg = "Creating new task for project"
 		return m, nil
-		
+
 	// Keys for task navigation (on main tab)
 	case "j", "down", "k", "up", "G", "ctrl+d", "ctrl+u":
 		if m.projectViewTab == 0 && len(m.projectTasks) > 0 {
@@ -283,21 +282,22 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			nav.cursor = m.projectTasksCursor
 			m.projectTasksCursor = nav.HandleKey(msg.String())
 		}
-		
+
 	case "enter":
 		if m.projectViewTab == 0 && len(m.projectTasks) > 0 && m.projectTasksCursor < len(m.projectTasks) {
 			// Open the selected task
 			task := m.projectTasks[m.projectTasksCursor]
 			m.mode = ModeTaskView
 			m.viewingTask = &task
-			m.viewingFile = &task.File
+			file := denote.FileFromTask(&task)
+			m.viewingFile = &file
 			m.editingField = ""
 			m.editBuffer = ""
 			m.editCursor = 0
 			m.returnToProject = true // Remember to return to project view
 			// Keep the project reference!
 		}
-		
+
 	case "0":
 		if m.projectViewTab == 0 && len(m.projectTasks) > 0 {
 			// Clear priority on selected task
@@ -308,7 +308,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.statusMsg = "Task priority cleared"
 			}
 		}
-		
+
 	case "1", "2", "3":
 		if m.projectViewTab == 0 && len(m.projectTasks) > 0 {
 			// Set priority on selected task
@@ -320,7 +320,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.statusMsg = fmt.Sprintf("Task priority updated to %s", priority)
 			}
 		}
-		
+
 	case "x":
 		// On main tab (0): delete selected task if cursor is on a task
 		if m.projectViewTab == 0 && len(m.projectTasks) > 0 && m.projectTasksCursor < len(m.projectTasks) {
@@ -328,7 +328,7 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = ModeConfirmDelete
 			return m, nil
 		}
-		
+
 	case "X":
 		// Capital X to delete the project itself (only on main tab)
 		if m.projectViewTab == 0 {
@@ -337,50 +337,22 @@ func (m Model) handleProjectViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = ModeConfirmDelete
 			return m, nil
 		}
-		
+
 	// Sorting keys (same as task mode - uppercase S since lowercase s is for status)
 	case "S":
 		// Open sort menu
 		m.mode = ModeSort
 		return m, nil
 	}
-	
+
 	return m, nil
 }
 
 // updateTaskPriorityFromProject updates a task priority from the project view
 func (m *Model) updateTaskPriorityFromProject(task *denote.Task, priority string) error {
-	// Read the file content
-	content, err := os.ReadFile(task.File.Path)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+	task.TaskMetadata.Priority = priority
+	if err := denote.UpdateTaskPriority(task.FilePath, priority); err != nil {
+		return err
 	}
-	
-	// Parse existing frontmatter
-	fm, err := denote.ParseFrontmatterFile(content)
-	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter: %w", err)
-	}
-	
-	// Update the metadata
-	if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
-		taskMeta.Priority = priority
-		
-		// Write updated content
-		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
-		if err != nil {
-			return fmt.Errorf("failed to write frontmatter: %w", err)
-		}
-		
-		// Write to file
-		if err := os.WriteFile(task.File.Path, newContent, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
-		}
-		
-		// Update our in-memory copy
-		task.TaskMetadata = taskMeta
-	}
-	
 	return nil
 }
-

@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	
@@ -635,7 +634,7 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					if task, err := denote.ParseTaskFile(file.Path); err == nil {
 						// Filter out system tags from metadata
 						var userTags []string
-						for _, tag := range task.TaskMetadata.Tags {
+						for _, tag := range task.Tags {
 							if tag != "task" && tag != "project" {
 								userTags = append(userTags, tag)
 							}
@@ -660,7 +659,7 @@ func (m Model) handleTaskModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					if project, err := denote.ParseProjectFile(file.Path); err == nil {
 						// Filter out system tags from metadata
 						var userTags []string
-						for _, tag := range project.ProjectMetadata.Tags {
+						for _, tag := range project.Tags {
 							if tag != "task" && tag != "project" {
 								userTags = append(userTags, tag)
 							}
@@ -969,7 +968,7 @@ func (m Model) handleStateMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			var taskPath string
 			if returnMode == ModeProjectView {
 				if m.projectTasksCursor < len(m.projectTasks) {
-					taskPath = m.projectTasks[m.projectTasksCursor].File.Path
+					taskPath = m.projectTasks[m.projectTasksCursor].FilePath
 				}
 				err = m.updateProjectTaskStatus(denote.TaskStatusDone)
 			} else {
@@ -1041,11 +1040,11 @@ func (m Model) handleConfirmDeleteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.projectViewTab == 0 && m.viewingProject != nil {
 			// Delete the project and clear project_id from affected tasks
 			projectPath := m.viewingFile.Path
-			projectTitle := m.viewingProject.ProjectMetadata.Title
+			projectTitle := m.viewingProject.Title
 			
 			// First, clear project_id from all affected tasks
 			for _, task := range m.affectedTasks {
-				if err := m.clearProjectFromTask(task.File.Path); err != nil {
+				if err := m.clearProjectFromTask(task.FilePath); err != nil {
 					m.statusMsg = fmt.Sprintf("Error updating task: %v", err)
 					m.mode = returnMode
 					return m, nil
@@ -1073,8 +1072,8 @@ func (m Model) handleConfirmDeleteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Delete task from project view
 			if m.projectTasksCursor < len(m.projectTasks) {
 				task := m.projectTasks[m.projectTasksCursor]
-				filePath := task.File.Path
-				fileTitle := task.TaskMetadata.Title
+				filePath := task.FilePath
+				fileTitle := task.Title
 				
 				if err := m.deleteFile(filePath); err != nil {
 					m.statusMsg = fmt.Sprintf("Error deleting: %v", err)
@@ -1424,12 +1423,12 @@ func (m Model) handleProjectSelectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else if m.projectSelectFor == "update" && m.projectSelectTask != nil {
 				// Clear project assignment
 				m.projectSelectTask.TaskMetadata.ProjectID = ""
-				if err := task.UpdateTaskFile(m.projectSelectTask.File.Path, m.projectSelectTask.TaskMetadata); err != nil {
+				if err := task.UpdateTaskFile(m.projectSelectTask.FilePath, m.projectSelectTask); err != nil {
 					m.statusMsg = fmt.Sprintf("Error updating task: %v", err)
 				} else {
 					m.statusMsg = "Removed from project"
 					// Reload task if we are viewing it
-					if m.viewingTask != nil && m.viewingTask.File.Path == m.projectSelectTask.File.Path {
+					if m.viewingTask != nil && m.viewingTask.FilePath == m.projectSelectTask.FilePath {
 						m.viewingTask = m.projectSelectTask
 					}
 				}
@@ -1438,7 +1437,7 @@ func (m Model) handleProjectSelectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else if m.projectSelectCursor-1 < len(m.projectSelectList) {
 			// Project selected (adjust for None option at index 0)
 			selected := m.projectSelectList[m.projectSelectCursor-1]
-			
+
 			if m.projectSelectFor == "create" {
 				// Set project ID in create form (using index_id)
 				m.createProject = strconv.Itoa(selected.IndexID)
@@ -1446,19 +1445,19 @@ func (m Model) handleProjectSelectKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else if m.projectSelectFor == "update" && m.projectSelectTask != nil {
 				// Update task with selected project (using index_id)
 				m.projectSelectTask.TaskMetadata.ProjectID = strconv.Itoa(selected.IndexID)
-				if err := task.UpdateTaskFile(m.projectSelectTask.File.Path, m.projectSelectTask.TaskMetadata); err != nil {
+				if err := task.UpdateTaskFile(m.projectSelectTask.FilePath, m.projectSelectTask); err != nil {
 					m.statusMsg = fmt.Sprintf("Error updating task: %v", err)
 				} else {
-					m.statusMsg = fmt.Sprintf("Added to project: %s", selected.ProjectMetadata.Title)
+					m.statusMsg = fmt.Sprintf("Added to project: %s", selected.Title)
 					// Reload task if we are viewing it
-					if m.viewingTask != nil && m.viewingTask.File.Path == m.projectSelectTask.File.Path {
+					if m.viewingTask != nil && m.viewingTask.FilePath == m.projectSelectTask.FilePath {
 						m.viewingTask = m.projectSelectTask
 					}
 				}
 				m.mode = ModeTaskView
 			}
 		}
-		
+
 	case "j", "down", "k", "up", "g", "G", "ctrl+d", "ctrl+u":
 		// Use navigation handler (account for None option at index 0)
 		nav := NewNavigationHandler(len(m.projectSelectList)+1, false)
@@ -1513,7 +1512,7 @@ func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if file.IsTask() && !isBeginDate {
 				if t, err := denote.ParseTaskFile(file.Path); err == nil {
 					t.TaskMetadata.DueDate = parsedDate
-					if err := task.UpdateTaskFile(file.Path, t.TaskMetadata); err != nil {
+					if err := task.UpdateTaskFile(file.Path, t); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					} else {
 						if parsedDate == "" {
@@ -1531,7 +1530,7 @@ func (m Model) handleDateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					} else {
 						project.ProjectMetadata.DueDate = parsedDate
 					}
-					if err := denote.UpdateProjectFile(file.Path, project.ProjectMetadata); err != nil {
+					if err := denote.UpdateProjectFile(file.Path, project); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					} else {
 						if parsedDate == "" {
@@ -1633,76 +1632,36 @@ func (m Model) handleTagsEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if file.IsTask() {
 				// Load fresh metadata from disk
 				if t, err := denote.ParseTaskFile(file.Path); err == nil {
-					oldPath := file.Path
 					// Always include "task" in metadata tags
-					t.TaskMetadata.Tags = []string{"task"}
-					t.TaskMetadata.Tags = append(t.TaskMetadata.Tags, newTags...)
-					
-					// First update the metadata
-					if err := task.UpdateTaskFile(file.Path, t.TaskMetadata); err != nil {
+					t.Tags = []string{"task"}
+					t.Tags = append(t.Tags, newTags...)
+
+					// Update the metadata
+					if err := task.UpdateTaskFile(file.Path, t); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					} else {
-						// Now rename the file to reflect new tags
-						allTags := []string{"task"} // Always include task tag
-						for _, tag := range newTags {
-							if tag != "task" {
-								allTags = append(allTags, tag)
-							}
-						}
-						
-						// Rename file
-						newPath, err := denote.RenameFileForTags(oldPath, allTags)
-						if err != nil {
-							m.statusMsg = fmt.Sprintf("Tags updated but rename failed: %v", err)
+						if len(newTags) == 0 {
+							m.statusMsg = "Tags cleared"
 						} else {
-							if len(newTags) == 0 {
-								m.statusMsg = "Tags cleared"
-							} else {
-								m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
-							}
-							
-							// Trigger a rescan if the file was renamed
-							if newPath != oldPath {
-								m.scanFiles()
-							}
+							m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
 						}
 					}
 				}
 			} else if file.IsProject() {
 				// Load fresh metadata from disk
 				if project, err := denote.ParseProjectFile(file.Path); err == nil {
-					oldPath := file.Path
 					// Always include "project" in metadata tags
-					project.ProjectMetadata.Tags = []string{"project"}
-					project.ProjectMetadata.Tags = append(project.ProjectMetadata.Tags, newTags...)
-					
-					// First update the metadata
-					if err := denote.UpdateProjectFile(file.Path, project.ProjectMetadata); err != nil {
+					project.Tags = []string{"project"}
+					project.Tags = append(project.Tags, newTags...)
+
+					// Update the metadata
+					if err := denote.UpdateProjectFile(file.Path, project); err != nil {
 						m.statusMsg = fmt.Sprintf(ErrorFormat, err)
 					} else {
-						// Now rename the file to reflect new tags
-						allTags := []string{"project"} // Always include project tag
-						for _, tag := range newTags {
-							if tag != "project" {
-								allTags = append(allTags, tag)
-							}
-						}
-						
-						// Rename file
-						newPath, err := denote.RenameFileForTags(oldPath, allTags)
-						if err != nil {
-							m.statusMsg = fmt.Sprintf("Tags updated but rename failed: %v", err)
+						if len(newTags) == 0 {
+							m.statusMsg = "Tags cleared"
 						} else {
-							if len(newTags) == 0 {
-								m.statusMsg = "Tags cleared"
-							} else {
-								m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
-							}
-							
-							// Trigger a rescan if the file was renamed
-							if newPath != oldPath {
-								m.scanFiles()
-							}
+							m.statusMsg = fmt.Sprintf("Tags updated: %s", strings.Join(newTags, " "))
 						}
 					}
 				}
@@ -1800,47 +1759,13 @@ func (m Model) handleEstimateEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			
 			// Update the task
 			if file.IsTask() {
-				// Read the file content
-				content, err := os.ReadFile(file.Path)
-				if err != nil {
-					m.statusMsg = fmt.Sprintf("Failed to read file: %v", err)
-					m.mode = ModeNormal
-					m.editingField = ""
-					m.editBuffer = ""
-					m.editCursor = 0
-					return m, nil
-				}
-				
-				// Parse existing frontmatter
-				fm, err := denote.ParseFrontmatterFile(content)
-				if err != nil {
-					m.statusMsg = fmt.Sprintf("Failed to parse frontmatter: %v", err)
-					m.mode = ModeNormal
-					m.editingField = ""
-					m.editBuffer = ""
-					m.editCursor = 0
-					return m, nil
-				}
-				
-				// Update the metadata
-				if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
-					taskMeta.Estimate = estimate
-					
-					// Write updated content
-					newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
-					if err != nil {
-						m.statusMsg = fmt.Sprintf("Failed to write frontmatter: %v", err)
+				if err := denote.UpdateTaskEstimate(file.Path, estimate); err != nil {
+					m.statusMsg = fmt.Sprintf("Failed to update estimate: %v", err)
+				} else {
+					if estimate == 0 {
+						m.statusMsg = "Estimate cleared"
 					} else {
-						// Write back to file
-						if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
-							m.statusMsg = fmt.Sprintf("Failed to update estimate: %v", err)
-						} else {
-							if estimate == 0 {
-								m.statusMsg = "Estimate cleared"
-							} else {
-								m.statusMsg = fmt.Sprintf("Estimate set to %d", estimate)
-							}
-						}
+						m.statusMsg = fmt.Sprintf("Estimate set to %d", estimate)
 					}
 				}
 			}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mph-llm-experiments/acore"
 	"github.com/mph-llm-experiments/atask/internal/config"
 	"github.com/mph-llm-experiments/atask/internal/denote"
 	"github.com/mph-llm-experiments/atask/internal/recurrence"
@@ -465,7 +465,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			
 			// Try to position cursor on the newly created task in project tasks
 			for i, t := range m.projectTasks {
-				if t.File.Path == msg.path {
+				if t.FilePath == msg.path {
 					m.projectTasksCursor = i
 					break
 				}
@@ -513,78 +513,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 		
 	case fileEditedMsg:
-		// Check if file needs renaming after edit
-		oldPath := msg.path
-		var newPath string
-		
-		// Parse the filename to determine file type
-		parser := denote.NewParser()
-		file, err := parser.ParseFilename(filepath.Base(oldPath))
-		if err != nil {
-			// Not a Denote file, just rescan
-			m.scanFiles()
-			return m, nil
-		}
-		
-		// Check if it's a task or project based on tags
-		if file.HasTag("task") {
-			if task, err := denote.ParseTaskFile(oldPath); err == nil {
-				// Build tag list including 'task' tag
-				allTags := []string{"task"}
-				for _, tag := range task.TaskMetadata.Tags {
-					if tag != "task" {
-						allTags = append(allTags, tag)
-					}
-				}
-				
-				// Check if rename is needed
-				if renamed, err := denote.RenameFileForTags(oldPath, allTags); err == nil {
-					newPath = renamed
-					if newPath != oldPath {
-						// No cache to update
-						// Update viewing file path if this is the file being viewed
-						if m.viewingFile != nil && m.viewingFile.Path == oldPath {
-							m.viewingFile.Path = newPath
-						}
-					}
-				}
-			}
-		} else if file.HasTag("project") {
-			if project, err := denote.ParseProjectFile(oldPath); err == nil {
-				// Build tag list including 'project' tag
-				allTags := []string{"project"}
-				for _, tag := range project.ProjectMetadata.Tags {
-					if tag != "project" {
-						allTags = append(allTags, tag)
-					}
-				}
-				
-				// Check if rename is needed
-				if renamed, err := denote.RenameFileForTags(oldPath, allTags); err == nil {
-					newPath = renamed
-					if newPath != oldPath {
-						// No cache to update
-						// Update viewing file path if this is the file being viewed
-						if m.viewingFile != nil && m.viewingFile.Path == oldPath {
-							m.viewingFile.Path = newPath
-						}
-					}
-				}
-			}
-		}
-		
-		// Always rescan files after editing
 		m.scanFiles()
-		
-		// Re-apply filters and sort to reflect any metadata changes
 		m.applyFilters()
 		m.sortFiles()
 		m.loadVisibleMetadata()
-		
-		if newPath != "" && newPath != oldPath {
-			m.statusMsg = "File renamed to match updated tags"
-		}
-		
 		return m, nil
 		
 	case error:
@@ -621,7 +553,7 @@ func (m *Model) loadProjectsForSelection() {
 	
 	// Sort by title
 	sort.Slice(m.projectSelectList, func(i, j int) bool {
-		return m.projectSelectList[i].ProjectMetadata.Title < m.projectSelectList[j].ProjectMetadata.Title
+		return m.projectSelectList[i].Title < m.projectSelectList[j].Title
 	})
 	
 	m.projectSelectCursor = 0
@@ -673,12 +605,12 @@ func (m Model) createTask() tea.Cmd {
 		
 		// Write updated metadata if needed
 		if needsUpdate {
-			if err := task.UpdateTaskFile(newTask.File.Path, newTask.TaskMetadata); err != nil {
+			if err := task.UpdateTaskFile(newTask.FilePath, newTask); err != nil {
 				return err
 			}
 		}
-		
-		return taskCreatedMsg{path: newTask.File.Path}
+
+		return taskCreatedMsg{path: newTask.FilePath}
 	}
 }
 
@@ -717,19 +649,19 @@ func (m Model) create() tea.Cmd {
 			if m.areaFilter != "" {
 				project.ProjectMetadata.Area = m.areaFilter
 				// Write back the updated metadata
-				if err := denote.UpdateProjectFile(project.File.Path, project.ProjectMetadata); err != nil {
+				if err := denote.UpdateProjectFile(project.FilePath, project); err != nil {
 					return fmt.Errorf(ErrorFailedTo, "update project area", err)
 				}
 			}
-			
-			return projectCreatedMsg{path: project.File.Path}
+
+			return projectCreatedMsg{path: project.FilePath}
 		} else {
 			// Create a task
-			task, err := task.CreateTask(m.config.NotesDirectory, m.createTitle, "", tags, m.createArea)
+			newTask, err := task.CreateTask(m.config.NotesDirectory, m.createTitle, "", tags, m.createArea)
 			if err != nil {
 				return err
 			}
-			return taskCreatedMsg{path: task.Path}
+			return taskCreatedMsg{path: newTask.FilePath}
 		}
 	}
 }
@@ -739,68 +671,36 @@ func (m *Model) updateTaskPriority(priority string) error {
 	if m.cursor >= len(m.filtered) {
 		return fmt.Errorf("no item selected")
 	}
-	
+
 	file := m.filtered[m.cursor]
-	
-	// Read the file content
-	content, err := os.ReadFile(file.Path)
-	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "read file", err)
-	}
-	
-	// Parse existing frontmatter
-	fm, err := denote.ParseFrontmatterFile(content)
-	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
-	}
-	
-	// Handle both tasks and projects
+
 	if file.IsTask() {
-		if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
-			taskMeta.Priority = priority
-			
-			// Write updated content
-			newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
-			if err != nil {
-				return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
-			}
-			
-			// Write to file
-			if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
-				return fmt.Errorf(ErrorFailedTo, "write file", err)
-			}
-			
-			if priority == "" {
-				m.statusMsg = "Task priority removed"
-			} else {
-				m.statusMsg = fmt.Sprintf("Task priority updated to %s", priority)
-			}
+		if err := denote.UpdateTaskPriority(file.Path, priority); err != nil {
+			return err
+		}
+		if priority == "" {
+			m.statusMsg = "Task priority removed"
+		} else {
+			m.statusMsg = fmt.Sprintf("Task priority updated to %s", priority)
 		}
 	} else if file.IsProject() {
-		if projectMeta, ok := fm.Metadata.(denote.ProjectMetadata); ok {
-			projectMeta.Priority = priority
-			
-			// Write updated content
-			newContent, err := denote.WriteFrontmatterFile(projectMeta, fm.Content)
-			if err != nil {
-				return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
-			}
-			
-			// Write to file
-			if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
-				return fmt.Errorf(ErrorFailedTo, "write file", err)
-			}
-			
-			if priority == "" {
-				m.statusMsg = "Project priority removed"
-			} else {
-				m.statusMsg = fmt.Sprintf("Project priority updated to %s", priority)
-			}
+		project, err := denote.ParseProjectFile(file.Path)
+		if err != nil {
+			return err
+		}
+		project.ProjectMetadata.Priority = priority
+		if err := denote.UpdateProjectFile(file.Path, project); err != nil {
+			return err
+		}
+		if priority == "" {
+			m.statusMsg = "Project priority removed"
+		} else {
+			m.statusMsg = fmt.Sprintf("Project priority updated to %s", priority)
 		}
 	} else {
 		return fmt.Errorf("selected file is neither task nor project")
 	}
-	
+
 	return nil
 }
 
@@ -811,53 +711,29 @@ func (m *Model) toggleTodayTag() error {
 	}
 
 	file := m.filtered[m.cursor]
-
-	// Only works for tasks
 	if !file.IsTask() {
 		return fmt.Errorf("today tag only works for tasks")
 	}
 
-	// Read the file content
-	content, err := os.ReadFile(file.Path)
+	task, err := denote.ParseTaskFile(file.Path)
 	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "read file", err)
+		return err
 	}
 
-	// Parse existing frontmatter
-	fm, err := denote.ParseFrontmatterFile(content)
-	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
-	}
-
-	taskMeta, ok := fm.Metadata.(denote.TaskMetadata)
-	if !ok {
-		return fmt.Errorf("invalid task metadata")
-	}
-
-	// Toggle today_date
 	todayStr := time.Now().Format("2006-01-02")
-	if taskMeta.TodayDate == todayStr {
-		// Already tagged for today, clear it
-		taskMeta.TodayDate = ""
+	if task.TaskMetadata.TodayDate == todayStr {
+		task.TaskMetadata.TodayDate = ""
 		m.statusMsg = "Removed from today"
 	} else {
-		// Tag for today
-		taskMeta.TodayDate = todayStr
+		task.TaskMetadata.TodayDate = todayStr
 		m.statusMsg = "Tagged for today ★"
 	}
 
-	// Write updated content
-	newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
-	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
+	task.Modified = acore.Now()
+	if err := acore.UpdateFrontmatter(file.Path, task); err != nil {
+		return err
 	}
 
-	// Write to file
-	if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
-		return fmt.Errorf(ErrorFailedTo, "write file", err)
-	}
-
-	// Re-sort to update position
 	m.scanFiles()
 
 	return nil
@@ -870,43 +746,18 @@ func (m *Model) clearAllTodayTags() error {
 		if !file.IsTask() {
 			continue
 		}
-
-		// Read the file content
-		content, err := os.ReadFile(file.Path)
+		task, err := denote.ParseTaskFile(file.Path)
 		if err != nil {
-			continue // Skip files we can't read
-		}
-
-		// Parse existing frontmatter
-		fm, err := denote.ParseFrontmatterFile(content)
-		if err != nil {
-			continue // Skip files we can't parse
-		}
-
-		taskMeta, ok := fm.Metadata.(denote.TaskMetadata)
-		if !ok {
 			continue
 		}
-
-		// Skip if not tagged for today
-		if taskMeta.TodayDate == "" {
+		if task.TaskMetadata.TodayDate == "" {
 			continue
 		}
-
-		// Clear today_date
-		taskMeta.TodayDate = ""
-
-		// Write updated content
-		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
-		if err != nil {
-			continue // Skip if we can't write
+		task.TaskMetadata.TodayDate = ""
+		task.Modified = acore.Now()
+		if err := acore.UpdateFrontmatter(file.Path, task); err != nil {
+			continue
 		}
-
-		// Write to file
-		if err := os.WriteFile(file.Path, newContent, 0644); err != nil {
-			continue // Skip if we can't save
-		}
-
 		count++
 	}
 
@@ -921,110 +772,56 @@ func (m *Model) updateTaskField(field, value string) error {
 	if m.viewingTask == nil || m.viewingFile == nil {
 		return fmt.Errorf("no task selected")
 	}
-	
-	// Read the file content
-	content, err := os.ReadFile(m.viewingFile.Path)
+
+	task, err := denote.ParseTaskFile(m.viewingFile.Path)
 	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "read file", err)
+		return fmt.Errorf("failed to read task: %w", err)
 	}
-	
-	// Parse existing frontmatter
-	fm, err := denote.ParseFrontmatterFile(content)
-	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
-	}
-	
-	// Update the metadata
-	if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
-		switch field {
-		case "title":
-			taskMeta.Title = value
-		case "priority":
-			taskMeta.Priority = value
-		case "status":
-			taskMeta.Status = value
-		case "due_date":
-			// Parse natural language dates
-			if value != "" {
-				parsed, err := denote.ParseNaturalDate(value)
-				if err != nil {
-					return fmt.Errorf("invalid date: %s (try: 2d, 1w, friday, jan 15, 2024-01-15)", value)
-				}
-				taskMeta.DueDate = parsed
-			} else {
-				taskMeta.DueDate = ""
-			}
-		case "area":
-			taskMeta.Area = value
-		case "estimate":
-			// Parse as int
-			var est int
-			fmt.Sscanf(value, "%d", &est)
-			taskMeta.Estimate = est
-		case "tags":
-			// Split by spaces and ensure "task" tag is always present
-			taskMeta.Tags = []string{"task"}
-			if value != "" {
-				userTags := strings.Fields(value)
-				for _, tag := range userTags {
-					if tag != "project" && tag != "task" {
-						taskMeta.Tags = append(taskMeta.Tags, tag)
-					}
-				}
-			}
-		}
-		
-		// Write updated content
-		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
-		if err != nil {
-			return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
-		}
-		
-		// Check if we need to rename the file (for tag changes)
-		oldPath := m.viewingFile.Path
-		newPath := oldPath
-		
-		if field == "tags" {
-			// Combine filename tags with metadata tags, excluding 'task'
-			allTags := []string{"task"} // Always include task tag
-			for _, tag := range taskMeta.Tags {
-				if tag != "task" {
-					allTags = append(allTags, tag)
-				}
-			}
-			
-			// Rename file to reflect new tags
-			renamed, err := denote.RenameFileForTags(oldPath, allTags)
+
+	switch field {
+	case "title":
+		task.Title = value
+	case "priority":
+		task.TaskMetadata.Priority = value
+	case "status":
+		task.TaskMetadata.Status = value
+	case "due_date":
+		if value != "" {
+			parsed, err := denote.ParseNaturalDate(value)
 			if err != nil {
-				return fmt.Errorf("failed to rename file: %w", err)
+				return fmt.Errorf("invalid date: %s (try: 2d, 1w, friday, jan 15, 2024-01-15)", value)
 			}
-			newPath = renamed
-		}
-		
-		// Write to file (at potentially new path)
-		if err := os.WriteFile(newPath, newContent, 0644); err != nil {
-			return fmt.Errorf(ErrorFailedTo, "write file", err)
-		}
-		
-		// Update our in-memory copy
-		m.viewingTask.TaskMetadata = taskMeta
-		
-		// Update path references if file was renamed
-		if newPath != oldPath {
-			// Update viewing file path
-			m.viewingFile.Path = newPath
-			
-			// No cache to update
-			
-			// Trigger a rescan to update the file list
-			m.scanFiles()
+			task.TaskMetadata.DueDate = parsed
 		} else {
-			// No cache to update - we read fresh from disk
+			task.TaskMetadata.DueDate = ""
 		}
-		
-		m.statusMsg = fmt.Sprintf("Updated %s to %s", field, value)
+	case "area":
+		task.TaskMetadata.Area = value
+	case "estimate":
+		var est int
+		fmt.Sscanf(value, "%d", &est)
+		task.TaskMetadata.Estimate = est
+	case "tags":
+		task.Tags = []string{"task"}
+		if value != "" {
+			userTags := strings.Fields(value)
+			for _, tag := range userTags {
+				if tag != "project" && tag != "task" {
+					task.Tags = append(task.Tags, tag)
+				}
+			}
+		}
 	}
-	
+
+	task.Modified = acore.Now()
+	if err := acore.UpdateFrontmatter(m.viewingFile.Path, task); err != nil {
+		return fmt.Errorf("failed to update task: %w", err)
+	}
+
+	// Update our in-memory copy
+	m.viewingTask = task
+
+	m.statusMsg = fmt.Sprintf("Updated %s to %s", field, value)
 	return nil
 }
 
@@ -1033,161 +830,67 @@ func (m *Model) updateProjectField(field, value string) error {
 	if m.viewingProject == nil || m.viewingFile == nil {
 		return fmt.Errorf("no project selected")
 	}
-	
-	// Read the file content
-	content, err := os.ReadFile(m.viewingFile.Path)
+
+	project, err := denote.ParseProjectFile(m.viewingFile.Path)
 	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "read file", err)
+		return fmt.Errorf("failed to read project: %w", err)
 	}
-	
-	// Parse existing frontmatter
-	fm, err := denote.ParseFrontmatterFile(content)
-	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
-	}
-	
-	// Update the metadata
-	if projectMeta, ok := fm.Metadata.(denote.ProjectMetadata); ok {
-		switch field {
-		case "title":
-			projectMeta.Title = value
-		case "priority":
-			projectMeta.Priority = value
-		case "status":
-			projectMeta.Status = value
-		case "due_date":
-			// Parse natural language dates
-			if value != "" {
-				parsed, err := denote.ParseNaturalDate(value)
-				if err != nil {
-					return fmt.Errorf("invalid date: %s (try: 2d, 1w, friday, jan 15, 2024-01-15)", value)
-				}
-				projectMeta.DueDate = parsed
-			} else {
-				projectMeta.DueDate = ""
+
+	switch field {
+	case "title":
+		project.Title = value
+	case "priority":
+		project.ProjectMetadata.Priority = value
+	case "status":
+		project.ProjectMetadata.Status = value
+	case "due_date":
+		if value != "" {
+			parsed, err := denote.ParseNaturalDate(value)
+			if err != nil {
+				return fmt.Errorf("invalid date: %s (try: 2d, 1w, friday, jan 15, 2024-01-15)", value)
 			}
-		case "start_date":
-			if value != "" {
-				parsed, err := denote.ParseNaturalDate(value)
-				if err != nil {
-					return fmt.Errorf("invalid date: %s (try: 2d, 1w, friday, jan 15, 2024-01-15)", value)
-				}
-				projectMeta.StartDate = parsed
-			} else {
-				projectMeta.StartDate = ""
-			}
-		case "area":
-			projectMeta.Area = value
-		case "tags":
-			// Split by spaces and ensure "project" tag is always present
-			projectMeta.Tags = []string{"project"}
-			if value != "" {
-				userTags := strings.Fields(value)
-				for _, tag := range userTags {
-					if tag != "project" && tag != "task" {
-						projectMeta.Tags = append(projectMeta.Tags, tag)
-					}
-				}
-			}
-		}
-		
-		// Write updated content
-		newContent, err := denote.WriteFrontmatterFile(projectMeta, fm.Content)
-		if err != nil {
-			return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
-		}
-		
-		// Check if we need to rename the file (for tag or title changes)
-		oldPath := m.viewingFile.Path
-		newPath := oldPath
-		
-		if field == "tags" || field == "title" {
-			if field == "title" {
-				// For title changes, we need to update the slug
-				// Parse the current filename to get components
-				parser := denote.NewParser()
-				oldFile, err := parser.ParseFilename(filepath.Base(oldPath))
-				if err != nil {
-					return fmt.Errorf("failed to parse filename: %w", err)
-				}
-				
-				// Create new filename with updated title slug
-				// Convert title to slug (same logic as titleToSlug in create.go)
-				slug := strings.ToLower(projectMeta.Title)
-				slug = strings.Map(func(r rune) rune {
-					if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-						return r
-					}
-					return '-'
-				}, slug)
-				for strings.Contains(slug, "--") {
-					slug = strings.ReplaceAll(slug, "--", "-")
-				}
-				slug = strings.Trim(slug, "-")
-				
-				newBasename := fmt.Sprintf("%s--%s", oldFile.ID, slug)
-				
-				// Add tags
-				if len(oldFile.Tags) > 0 {
-					newBasename += "__" + strings.Join(oldFile.Tags, "__")
-				}
-				newBasename += ".md"
-				
-				// Create full path
-				dir := filepath.Dir(oldPath)
-				newPath = filepath.Join(dir, newBasename)
-				
-				// Rename the file
-				if newPath != oldPath {
-					if err := os.Rename(oldPath, newPath); err != nil {
-						return fmt.Errorf("failed to rename file: %w", err)
-					}
-				}
-			} else {
-				// Tag changes - use existing logic
-				allTags := []string{"project"} // Always include project tag
-				for _, tag := range projectMeta.Tags {
-					if tag != "project" {
-						allTags = append(allTags, tag)
-					}
-				}
-				
-				// Rename file to reflect new tags
-				renamed, err := denote.RenameFileForTags(oldPath, allTags)
-				if err != nil {
-					return fmt.Errorf("failed to rename file: %w", err)
-				}
-				newPath = renamed
-			}
-		}
-		
-		// Write to file (at potentially new path)
-		if err := os.WriteFile(newPath, newContent, 0644); err != nil {
-			return fmt.Errorf(ErrorFailedTo, "write file", err)
-		}
-		
-		// Update our in-memory copy
-		m.viewingProject.ProjectMetadata = projectMeta
-		
-		// Update path references if file was renamed
-		if newPath != oldPath {
-			// Update viewing file path
-			m.viewingFile.Path = newPath
-			
-			// No cache to update
-			
-			// Trigger a rescan to update the file list
-			m.scanFiles()
+			project.ProjectMetadata.DueDate = parsed
 		} else {
-			// No cache to update - we read fresh from disk
+			project.ProjectMetadata.DueDate = ""
 		}
-		
-		m.statusMsg = fmt.Sprintf("Updated %s", field)
-		return nil
-	} else {
-		return fmt.Errorf("file is not a project")
+	case "start_date":
+		if value != "" {
+			parsed, err := denote.ParseNaturalDate(value)
+			if err != nil {
+				return fmt.Errorf("invalid date: %s (try: 2d, 1w, friday, jan 15, 2024-01-15)", value)
+			}
+			project.ProjectMetadata.StartDate = parsed
+		} else {
+			project.ProjectMetadata.StartDate = ""
+		}
+	case "area":
+		project.ProjectMetadata.Area = value
+	case "tags":
+		project.Tags = []string{"project"}
+		if value != "" {
+			userTags := strings.Fields(value)
+			for _, tag := range userTags {
+				if tag != "project" && tag != "task" {
+					project.Tags = append(project.Tags, tag)
+				}
+			}
+		}
 	}
-	
+
+	project.Modified = acore.Now()
+	if err := acore.UpdateFrontmatter(m.viewingFile.Path, project); err != nil {
+		return fmt.Errorf("failed to update project: %w", err)
+	}
+
+	// Update our in-memory copy
+	m.viewingProject = project
+
+	// Re-sort if relevant field changed
+	m.applyFilters()
+	m.sortFiles()
+	m.loadVisibleMetadata()
+
+	m.statusMsg = fmt.Sprintf("Updated %s", field)
 	return nil
 }
 
@@ -1230,7 +933,7 @@ func (m *Model) loadProjectTasks() {
 		// Convert tasks to files for sorting
 		taskFiles := make([]denote.File, len(m.projectTasks))
 		for i, task := range m.projectTasks {
-			taskFiles[i] = task.File
+			taskFiles[i] = denote.FileFromTask(&task)
 		}
 		
 		// Sort the files without cached metadata
@@ -1241,7 +944,7 @@ func (m *Model) loadProjectTasks() {
 		for i, file := range taskFiles {
 			// Find the matching task
 			for _, task := range m.projectTasks {
-				if task.File.Path == file.Path {
+				if task.FilePath == file.Path {
 					sortedTasks[i] = task
 					break
 				}
@@ -1299,7 +1002,7 @@ func (m *Model) taskMatchesSearch(task *denote.Task, query string) bool {
 			if file.IsProject() {
 				if proj, err := denote.ParseProjectFile(file.Path); err == nil {
 					if strconv.Itoa(proj.IndexID) == task.ProjectID {
-						if fuzzyMatch(strings.ToLower(proj.ProjectMetadata.Title), query) {
+						if fuzzyMatch(strings.ToLower(proj.Title), query) {
 							return true
 						}
 						break
@@ -1371,7 +1074,7 @@ func (m *Model) handleTaskRecurrence(filePath string) string {
 		return ""
 	}
 
-	return fmt.Sprintf(" | ↻ Created next: ID %d (due %s)", newTask.TaskMetadata.IndexID, nextDue.Format("2006-01-02"))
+	return fmt.Sprintf(" | ↻ Created next: ID %d (due %s)", newTask.IndexID, nextDue.Format("2006-01-02"))
 }
 
 // updateCurrentProjectStatus updates the status of the currently selected project
@@ -1395,7 +1098,7 @@ func (m *Model) updateCurrentProjectStatus(newStatus string) error {
 	project.ProjectMetadata.Status = newStatus
 
 	// Write back
-	err = denote.UpdateProjectFile(file.Path, project.ProjectMetadata)
+	err = denote.UpdateProjectFile(file.Path, project)
 	if err != nil {
 		return fmt.Errorf("failed to update project: %v", err)
 	}
@@ -1432,37 +1135,9 @@ func (m *Model) findTasksAffectedByProjectDeletion() {
 
 // clearProjectFromTask removes the project_id from a task
 func (m *Model) clearProjectFromTask(taskPath string) error {
-	// Read the file content
-	content, err := os.ReadFile(taskPath)
-	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "read file", err)
+	if err := denote.UpdateTaskProjectID(taskPath, ""); err != nil {
+		return err
 	}
-	
-	// Parse existing frontmatter
-	fm, err := denote.ParseFrontmatterFile(content)
-	if err != nil {
-		return fmt.Errorf(ErrorFailedTo, "parse frontmatter", err)
-	}
-	
-	// Update the metadata
-	if taskMeta, ok := fm.Metadata.(denote.TaskMetadata); ok {
-		// Clear the project ID
-		taskMeta.ProjectID = ""
-		
-		// Write updated content
-		newContent, err := denote.WriteFrontmatterFile(taskMeta, fm.Content)
-		if err != nil {
-			return fmt.Errorf(ErrorFailedTo, "write frontmatter", err)
-		}
-		
-		// Write to file
-		if err := os.WriteFile(taskPath, newContent, 0644); err != nil {
-			return fmt.Errorf(ErrorFailedTo, "write file", err)
-		}
-		
-		// No cache to update
-	}
-	
 	return nil
 }
 
@@ -1475,7 +1150,7 @@ func (m *Model) updateProjectTaskStatus(newStatus string) error {
 	task := &m.projectTasks[m.projectTasksCursor]
 	
 	// Update the task status
-	err := denote.UpdateTaskStatus(task.File.Path, newStatus)
+	err := denote.UpdateTaskStatus(task.FilePath, newStatus)
 	if err != nil {
 		return err
 	}

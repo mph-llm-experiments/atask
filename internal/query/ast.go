@@ -59,7 +59,7 @@ func (n *ComparisonNode) Evaluate(task *denote.Task, cfg *config.Config) bool {
 		return compareInt(task.TaskMetadata.Estimate, n.Operator, value)
 
 	case "index_id":
-		return compareInt(task.TaskMetadata.IndexID, n.Operator, value)
+		return compareInt(task.IndexID, n.Operator, value)
 
 	case "due", "due_date":
 		// Special values
@@ -108,11 +108,11 @@ func (n *ComparisonNode) Evaluate(task *denote.Task, cfg *config.Config) bool {
 		return compareString(task.TaskMetadata.TodayDate, n.Operator, value)
 
 	case "title":
-		return compareString(strings.ToLower(task.TaskMetadata.Title), n.Operator, value)
+		return compareString(strings.ToLower(task.Title), n.Operator, value)
 
 	case "tag", "tags":
 		// Check if any tag matches
-		for _, tag := range task.TaskMetadata.Tags {
+		for _, tag := range task.Tags {
 			if compareString(strings.ToLower(tag), n.Operator, value) {
 				return true
 			}

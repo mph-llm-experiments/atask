@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/mph-llm-experiments/acore"
 	"github.com/mph-llm-experiments/atask/internal/config"
 	"github.com/mph-llm-experiments/atask/internal/denote"
 	"github.com/mph-llm-experiments/atask/internal/task"
@@ -26,11 +27,107 @@ func ProjectCommand(cfg *config.Config) *Command {
 	cmd.Subcommands = []*Command{
 		projectNewCommand(cfg),
 		projectListCommand(cfg),
+		projectShowCommand(cfg),
 		projectTasksCommand(cfg),
 		projectUpdateCommand(cfg),
 	}
 
 	return cmd
+}
+
+// lookupProject finds a project by integer index_id or ULID string.
+func lookupProject(dir string, identifier string) (*denote.Project, error) {
+	if num, err := strconv.Atoi(identifier); err == nil {
+		return task.FindProjectByID(dir, num)
+	}
+	return task.FindProjectByEntityID(dir, identifier)
+}
+
+// projectShowCommand shows details for a single project
+func projectShowCommand(cfg *config.Config) *Command {
+	return &Command{
+		Name:        "show",
+		Usage:       "atask project show <id>",
+		Description: "Show project details by index_id or ULID",
+		Run: func(cmd *Command, args []string) error {
+			if len(args) == 0 {
+				return fmt.Errorf("usage: atask project show <id>")
+			}
+
+			p, err := lookupProject(cfg.NotesDirectory, args[0])
+			if err != nil {
+				return err
+			}
+
+			if globalFlags.JSON {
+				data, err := json.MarshalIndent(p, "", "  ")
+				if err != nil {
+					return fmt.Errorf("failed to marshal JSON: %w", err)
+				}
+				fmt.Println(string(data))
+				return nil
+			}
+
+			// Text output
+			fmt.Printf("# %s (#%d)\n\n", p.Title, p.IndexID)
+
+			fmt.Printf("  ID:       %s\n", p.ID)
+			fmt.Printf("  Status:   %s\n", p.ProjectMetadata.Status)
+			if p.ProjectMetadata.Priority != "" {
+				fmt.Printf("  Priority: %s\n", p.ProjectMetadata.Priority)
+			}
+			if p.ProjectMetadata.DueDate != "" {
+				dueStr := p.ProjectMetadata.DueDate
+				if denote.IsOverdue(p.ProjectMetadata.DueDate) && p.ProjectMetadata.Status == denote.ProjectStatusActive {
+					dueStr += " (OVERDUE)"
+				}
+				fmt.Printf("  Due:      %s\n", dueStr)
+			}
+			if p.ProjectMetadata.StartDate != "" {
+				fmt.Printf("  Start:    %s\n", p.ProjectMetadata.StartDate)
+			}
+			if p.ProjectMetadata.Area != "" {
+				fmt.Printf("  Area:     %s\n", p.ProjectMetadata.Area)
+			}
+			fmt.Println()
+
+			if p.Created != "" {
+				fmt.Printf("  Created:  %s\n", p.Created)
+			}
+			if p.Modified != "" {
+				fmt.Printf("  Modified: %s\n", p.Modified)
+			}
+
+			var tagStrs []string
+			for _, tag := range p.Tags {
+				if tag != "project" {
+					tagStrs = append(tagStrs, "#"+tag)
+				}
+			}
+			if len(tagStrs) > 0 {
+				fmt.Printf("\n  Tags: %s\n", strings.Join(tagStrs, " "))
+			}
+
+			if len(p.RelatedPeople) > 0 || len(p.RelatedTasks) > 0 || len(p.RelatedIdeas) > 0 {
+				fmt.Println()
+				if len(p.RelatedPeople) > 0 {
+					fmt.Printf("  Related people: %s\n", strings.Join(p.RelatedPeople, ", "))
+				}
+				if len(p.RelatedTasks) > 0 {
+					fmt.Printf("  Related tasks:  %s\n", strings.Join(p.RelatedTasks, ", "))
+				}
+				if len(p.RelatedIdeas) > 0 {
+					fmt.Printf("  Related ideas:  %s\n", strings.Join(p.RelatedIdeas, ", "))
+				}
+			}
+
+			if strings.TrimSpace(p.Content) != "" {
+				fmt.Printf("\n---\n%s", p.Content)
+			}
+
+			return nil
+		},
+	}
 }
 
 // projectNewCommand creates a new project
@@ -108,13 +205,13 @@ func projectNewCommand(cfg *config.Config) *Command {
 
 		// Write back if we have updates
 		if needsUpdate {
-			if err := updateProjectFile(projectFile.Path, projectFile.ProjectMetadata); err != nil {
+			if err := denote.UpdateProjectFile(projectFile.FilePath, projectFile); err != nil {
 				return fmt.Errorf("failed to update project metadata: %v", err)
 			}
 		}
 
 		if !globalFlags.Quiet {
-			fmt.Printf("Created project: %s (ID: %d)\n", projectFile.Path, projectFile.IndexID)
+			fmt.Printf("Created project: %s (ID: %d)\n", projectFile.FilePath, projectFile.IndexID)
 		}
 
 		// Launch TUI if requested
@@ -315,10 +412,7 @@ func projectListCommand(cfg *config.Config) *Command {
 			}
 
 			// Title - truncate to 40 chars
-			title := p.ProjectMetadata.Title
-			if title == "" {
-				title = p.File.Title
-			}
+			title := p.Title
 			if len(title) > 40 {
 				title = title[:37] + "..."
 			}
@@ -338,7 +432,7 @@ func projectListCommand(cfg *config.Config) *Command {
 
 			// Build the line with fixed-width columns
 			line := fmt.Sprintf("%3d %s %s %s  %-40s %-10s %s",
-				p.ProjectMetadata.IndexID,
+				p.IndexID,
 				status,
 				priority,
 				due,
@@ -390,13 +484,13 @@ func projectTasksCommand(cfg *config.Config) *Command {
 			return fmt.Errorf("project ID required")
 		}
 
-		// Parse project ID (can be numeric index or Denote ID)
+		// Parse project ID (can be numeric index or ULID)
 		projectIdentifier := args[0]
-		
+
 		// Find the project
 		scanner := denote.NewScanner(cfg.NotesDirectory)
 		var targetProject *denote.Project
-		
+
 		// Try to parse as numeric ID first
 		if projectNum, err := strconv.Atoi(projectIdentifier); err == nil {
 			targetProject, err = task.FindProjectByID(cfg.NotesDirectory, projectNum)
@@ -404,10 +498,10 @@ func projectTasksCommand(cfg *config.Config) *Command {
 				return fmt.Errorf("project with ID %d not found", projectNum)
 			}
 		} else {
-			// Try as Denote ID
-			targetProject, err = task.FindProjectByDenoteID(cfg.NotesDirectory, projectIdentifier)
+			// Try as ULID
+			targetProject, err = task.FindProjectByEntityID(cfg.NotesDirectory, projectIdentifier)
 			if err != nil {
-				return fmt.Errorf("project with Denote ID %s not found", projectIdentifier)
+				return fmt.Errorf("project with ID %s not found", projectIdentifier)
 			}
 		}
 
@@ -459,7 +553,7 @@ func projectTasksCommand(cfg *config.Config) *Command {
 		}
 
 		// Display project header
-		fmt.Printf("Project: %s\n", targetProject.ProjectMetadata.Title)
+		fmt.Printf("Project: %s\n", targetProject.Title)
 		if targetProject.ProjectMetadata.Status != denote.ProjectStatusActive {
 			fmt.Printf("Status: %s\n", targetProject.ProjectMetadata.Status)
 		}
@@ -528,17 +622,14 @@ func projectTasksCommand(cfg *config.Config) *Command {
 			}
 
 			// Title
-			title := t.TaskMetadata.Title
-			if title == "" {
-				title = t.File.Title
-			}
+			title := t.Title
 			if len(title) > 60 {
 				title = title[:57] + "..."
 			}
 
 			// Build line
 			line := fmt.Sprintf("%3d %s %s %s  %s",
-				t.TaskMetadata.IndexID,
+				t.IndexID,
 				statusIcon,
 				priority,
 				due,
@@ -590,12 +681,12 @@ func projectUpdateCommand(cfg *config.Config) *Command {
 	cmd.Flags.StringVar(&status, "status", "", "Set status (active, completed, paused, cancelled)")
 
 	// Cross-app relationship flags
-	cmd.Flags.StringVar(&addPerson, "add-person", "", "Add related contact (Denote ID)")
-	cmd.Flags.StringVar(&removePerson, "remove-person", "", "Remove related contact (Denote ID)")
-	cmd.Flags.StringVar(&addTask, "add-task", "", "Add related task (Denote ID)")
-	cmd.Flags.StringVar(&removeTask, "remove-task", "", "Remove related task (Denote ID)")
-	cmd.Flags.StringVar(&addIdea, "add-idea", "", "Add related idea (Denote ID)")
-	cmd.Flags.StringVar(&removeIdea, "remove-idea", "", "Remove related idea (Denote ID)")
+	cmd.Flags.StringVar(&addPerson, "add-person", "", "Add related contact (ULID)")
+	cmd.Flags.StringVar(&removePerson, "remove-person", "", "Remove related contact (ULID)")
+	cmd.Flags.StringVar(&addTask, "add-task", "", "Add related task (ULID)")
+	cmd.Flags.StringVar(&removeTask, "remove-task", "", "Remove related task (ULID)")
+	cmd.Flags.StringVar(&addIdea, "add-idea", "", "Add related idea (ULID)")
+	cmd.Flags.StringVar(&removeIdea, "remove-idea", "", "Remove related idea (ULID)")
 
 	cmd.Run = func(c *Command, args []string) error {
 		if len(args) == 0 {
@@ -618,7 +709,7 @@ func projectUpdateCommand(cfg *config.Config) *Command {
 		// Build index of projects by index_id
 		projectsByID := make(map[int]*denote.Project)
 		for _, p := range projects {
-			projectsByID[p.ProjectMetadata.IndexID] = p
+			projectsByID[p.IndexID] = p
 		}
 
 		// Update each project
@@ -669,38 +760,44 @@ func projectUpdateCommand(cfg *config.Config) *Command {
 
 			// Apply cross-app relationship updates
 			if addPerson != "" {
-				p.ProjectMetadata.RelatedPeople = addToSlice(p.ProjectMetadata.RelatedPeople, addPerson)
+				acore.AddRelation(&p.RelatedPeople, addPerson)
+				acore.SyncRelation(p.Type, p.ID, addPerson)
 				changed = true
 			}
 			if removePerson != "" {
-				p.ProjectMetadata.RelatedPeople = removeFromSlice(p.ProjectMetadata.RelatedPeople, removePerson)
+				acore.RemoveRelation(&p.RelatedPeople, removePerson)
+				acore.UnsyncRelation(p.Type, p.ID, removePerson)
 				changed = true
 			}
 			if addTask != "" {
-				p.ProjectMetadata.RelatedTasks = addToSlice(p.ProjectMetadata.RelatedTasks, addTask)
+				acore.AddRelation(&p.RelatedTasks, addTask)
+				acore.SyncRelation(p.Type, p.ID, addTask)
 				changed = true
 			}
 			if removeTask != "" {
-				p.ProjectMetadata.RelatedTasks = removeFromSlice(p.ProjectMetadata.RelatedTasks, removeTask)
+				acore.RemoveRelation(&p.RelatedTasks, removeTask)
+				acore.UnsyncRelation(p.Type, p.ID, removeTask)
 				changed = true
 			}
 			if addIdea != "" {
-				p.ProjectMetadata.RelatedIdeas = addToSlice(p.ProjectMetadata.RelatedIdeas, addIdea)
+				acore.AddRelation(&p.RelatedIdeas, addIdea)
+				acore.SyncRelation(p.Type, p.ID, addIdea)
 				changed = true
 			}
 			if removeIdea != "" {
-				p.ProjectMetadata.RelatedIdeas = removeFromSlice(p.ProjectMetadata.RelatedIdeas, removeIdea)
+				acore.RemoveRelation(&p.RelatedIdeas, removeIdea)
+				acore.UnsyncRelation(p.Type, p.ID, removeIdea)
 				changed = true
 			}
 
 			if changed {
-				if err := updateProjectFile(p.File.Path, p.ProjectMetadata); err != nil {
+				if err := denote.UpdateProjectFile(p.FilePath, p); err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to update project ID %d: %v\n", id, err)
 					continue
 				}
 				updated++
 				if !globalFlags.Quiet {
-					fmt.Printf("Updated project ID %d: %s\n", id, p.ProjectMetadata.Title)
+					fmt.Printf("Updated project ID %d: %s\n", id, p.Title)
 				}
 			}
 		}
@@ -719,14 +816,14 @@ func projectUpdateCommand(cfg *config.Config) *Command {
 func sortProjects(projects []*denote.Project, sortBy string, reverse bool) {
 	sort.Slice(projects, func(i, j int) bool {
 		var less bool
-		
+
 		switch sortBy {
 		case "priority":
 			// Sort by priority (p1 < p2 < p3 < "")
 			pi := priorityValue(projects[i].ProjectMetadata.Priority)
 			pj := priorityValue(projects[j].ProjectMetadata.Priority)
 			less = pi < pj
-			
+
 		case "due":
 			// Sort by due date (earliest first, empty last)
 			di := projects[i].ProjectMetadata.DueDate
@@ -740,7 +837,7 @@ func sortProjects(projects []*denote.Project, sortBy string, reverse bool) {
 			} else {
 				less = di < dj
 			}
-			
+
 		case "begin", "start":
 			// Sort by start date (earliest first, empty last)
 			si := projects[i].ProjectMetadata.StartDate
@@ -756,14 +853,14 @@ func sortProjects(projects []*denote.Project, sortBy string, reverse bool) {
 			}
 
 		case "created":
-			less = projects[i].File.ID < projects[j].File.ID
+			less = projects[i].ID < projects[j].ID
 
 		case "modified":
 			fallthrough
 		default:
 			less = projects[i].ModTime.After(projects[j].ModTime)
 		}
-		
+
 		if reverse {
 			return !less
 		}
@@ -775,14 +872,14 @@ func sortProjects(projects []*denote.Project, sortBy string, reverse bool) {
 func sortProjectTasks(tasks []*denote.Task, sortBy string, reverse bool) {
 	sort.Slice(tasks, func(i, j int) bool {
 		var less bool
-		
+
 		switch sortBy {
 		case "priority":
 			// Sort by priority (p1 < p2 < p3 < "")
 			pi := priorityValue(tasks[i].TaskMetadata.Priority)
 			pj := priorityValue(tasks[j].TaskMetadata.Priority)
 			less = pi < pj
-			
+
 		case "due":
 			// Sort by due date (earliest first, empty last)
 			di := tasks[i].TaskMetadata.DueDate
@@ -796,45 +893,17 @@ func sortProjectTasks(tasks []*denote.Task, sortBy string, reverse bool) {
 			} else {
 				less = di < dj
 			}
-			
+
 		case "created":
-			less = tasks[i].File.ID < tasks[j].File.ID
-			
+			less = tasks[i].ID < tasks[j].ID
+
 		default:
 			less = tasks[i].ModTime.After(tasks[j].ModTime)
 		}
-		
+
 		if reverse {
 			return !less
 		}
 		return less
 	})
-}
-
-// updateProjectFile updates the project metadata in a file
-func updateProjectFile(path string, metadata denote.ProjectMetadata) error {
-	// Read the current file
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Parse existing frontmatter to get the content
-	fm, err := denote.ParseFrontmatterFile(content)
-	if err != nil {
-		return fmt.Errorf("failed to parse frontmatter: %w", err)
-	}
-
-	// Write updated content
-	newContent, err := denote.WriteFrontmatterFile(metadata, fm.Content)
-	if err != nil {
-		return fmt.Errorf("failed to write frontmatter: %w", err)
-	}
-
-	// Write to file
-	if err := os.WriteFile(path, newContent, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	return nil
 }

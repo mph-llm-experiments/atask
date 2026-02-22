@@ -210,23 +210,3 @@ func ParseGlobalFlags(args []string) ([]string, error) {
 	return remaining, nil
 }
 
-// addToSlice appends a value to a slice if not already present
-func addToSlice(slice []string, val string) []string {
-	for _, v := range slice {
-		if v == val {
-			return slice
-		}
-	}
-	return append(slice, val)
-}
-
-// removeFromSlice removes a value from a slice
-func removeFromSlice(slice []string, val string) []string {
-	result := make([]string, 0, len(slice))
-	for _, v := range slice {
-		if v != val {
-			result = append(result, v)
-		}
-	}
-	return result
-}

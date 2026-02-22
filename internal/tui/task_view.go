@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mph-llm-experiments/acore"
 	"github.com/mph-llm-experiments/atask/internal/denote"
 )
 
@@ -123,7 +124,7 @@ func (m Model) renderTaskDetails() string {
 	var lines []string
 	
 	// Title
-	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "", "T"))
+	lines = append(lines, m.renderFieldWithHotkey("Title", task.Title, "", "T"))
 	
 	// Status with color
 	statusValue := meta.Status
@@ -185,26 +186,16 @@ func (m Model) renderTaskDetails() string {
 	// Tags (editable) - filter out system tags
 	tagsDisplay := ""
 	var displayTags []string
-	
-	// First check metadata tags
-	for _, tag := range meta.Tags {
+
+	// Check tags from Entity
+	for _, tag := range task.Tags {
 		if tag != "task" && tag != "project" {
 			displayTags = append(displayTags, tag)
 		}
 	}
-	
+
 	if len(displayTags) > 0 {
 		tagsDisplay = strings.Join(displayTags, " ")
-	} else {
-		// Fall back to filename tags if no metadata tags
-		for _, tag := range task.File.Tags {
-			if tag != "task" && tag != "project" {
-				displayTags = append(displayTags, tag)
-			}
-		}
-		if len(displayTags) > 0 {
-			tagsDisplay = strings.Join(displayTags, " ") + " (from filename)"
-		}
 	}
 	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "t"))
 	
@@ -221,8 +212,8 @@ func (m Model) renderTaskDetails() string {
 			if f.IsProject() {
 				if proj, err := denote.ParseProjectFile(f.Path); err == nil {
 					if strconv.Itoa(proj.IndexID) == meta.ProjectID {
-						if proj.ProjectMetadata.Title != "" {
-							projectName = proj.ProjectMetadata.Title
+						if proj.Title != "" {
+							projectName = proj.Title
 						} else if f.Title != "" {
 							projectName = f.Title
 						}
@@ -248,20 +239,22 @@ func (m Model) renderTaskDetails() string {
 	// File info
 	lines = append(lines, "")
 	lines = append(lines, m.renderFieldWithHotkey("File", m.viewingFile.Path, "", ""))
-	lines = append(lines, m.renderFieldWithHotkey("ID", task.File.ID, "", ""))
-	
-	
+	lines = append(lines, m.renderFieldWithHotkey("ID", task.ID, "", ""))
+
+	// Resolved relations
+	lines = append(lines, m.renderRelations(&task.Entity)...)
+
 	return strings.Join(lines, "\n")
 }
 
 func (m Model) renderProjectDetails() string {
 	project := m.viewingProject
 	meta := project.ProjectMetadata
-	
+
 	var lines []string
-	
+
 	// Title
-	lines = append(lines, m.renderFieldWithHotkey("Title", meta.Title, "not set", "T"))
+	lines = append(lines, m.renderFieldWithHotkey("Title", project.Title, "not set", "T"))
 	
 	// Status
 	statusValue := meta.Status
@@ -294,26 +287,16 @@ func (m Model) renderProjectDetails() string {
 	// Tags (editable) - filter out system tags
 	tagsDisplay := ""
 	var displayTags []string
-	
-	// First check metadata tags
-	for _, tag := range meta.Tags {
+
+	// Check tags from Entity
+	for _, tag := range project.Tags {
 		if tag != "task" && tag != "project" {
 			displayTags = append(displayTags, tag)
 		}
 	}
-	
+
 	if len(displayTags) > 0 {
 		tagsDisplay = strings.Join(displayTags, " ")
-	} else {
-		// Fall back to filename tags if no metadata tags
-		for _, tag := range project.File.Tags {
-			if tag != "task" && tag != "project" {
-				displayTags = append(displayTags, tag)
-			}
-		}
-		if len(displayTags) > 0 {
-			tagsDisplay = strings.Join(displayTags, " ") + " (from filename)"
-		}
 	}
 	lines = append(lines, m.renderFieldWithHotkey("Tags", tagsDisplay, "not set", "t"))
 	
@@ -325,56 +308,63 @@ func (m Model) renderProjectDetails() string {
 	// File info
 	lines = append(lines, "")
 	lines = append(lines, m.renderFieldWithHotkey("File", m.viewingFile.Path, "", ""))
-	lines = append(lines, m.renderFieldWithHotkey("ID", project.File.ID, "", ""))
-	if len(project.File.Tags) > 0 {
-		lines = append(lines, m.renderFieldWithHotkey("Tags", strings.Join(project.File.Tags, ", "), "not set", ""))
-	}
-	
+	lines = append(lines, m.renderFieldWithHotkey("ID", project.ID, "", ""))
+
+	// Resolved relations
+	lines = append(lines, m.renderRelations(&project.Entity)...)
+
 	return strings.Join(lines, "\n")
 }
 
 func (m Model) getBodyContent() string {
+	var content string
 	if m.viewingTask != nil {
-		// Extract body from content (content after frontmatter)
-		content := m.viewingTask.Content
-		
-		// Find the end of frontmatter
-		if strings.HasPrefix(content, "---\n") {
-			// Find the closing ---
-			parts := strings.SplitN(content, "\n---\n", 3)
-			if len(parts) >= 2 {
-				body := strings.TrimSpace(parts[1])
-				if len(parts) == 3 {
-					body = strings.TrimSpace(parts[2])
-				}
-				return body
-			}
-		}
-		
-		// If no frontmatter, return the whole content
-		return strings.TrimSpace(content)
+		content = m.viewingTask.Content
 	} else if m.viewingProject != nil {
-		// Same for projects
-		content := m.viewingProject.Content
-		
-		// Find the end of frontmatter
-		if strings.HasPrefix(content, "---\n") {
-			// Find the closing ---
-			parts := strings.SplitN(content, "\n---\n", 3)
-			if len(parts) >= 2 {
-				body := strings.TrimSpace(parts[1])
-				if len(parts) == 3 {
-					body = strings.TrimSpace(parts[2])
-				}
-				return body
-			}
-		}
-		
-		// If no frontmatter, return the whole content
-		return strings.TrimSpace(content)
+		content = m.viewingProject.Content
+	} else {
+		return ""
 	}
-	
-	return ""
+
+	// Extract body from content (content after frontmatter)
+	if strings.HasPrefix(content, "---\n") {
+		parts := strings.SplitN(content, "\n---\n", 3)
+		if len(parts) >= 2 {
+			body := parts[1]
+			if len(parts) == 3 {
+				body = parts[2]
+			}
+			body = acore.StripLinksBlock(body)
+			return strings.TrimSpace(body)
+		}
+	}
+
+	return strings.TrimSpace(acore.StripLinksBlock(content))
+}
+
+func (m Model) renderRelations(entity *acore.Entity) []string {
+	cfg, err := acore.LoadConfig()
+	if err != nil {
+		return nil
+	}
+
+	people, tasks, ideas := acore.ResolveRelations(cfg, entity)
+	if len(people) == 0 && len(tasks) == 0 && len(ideas) == 0 {
+		return nil
+	}
+
+	var lines []string
+	lines = append(lines, "")
+	if len(people) > 0 {
+		lines = append(lines, m.renderFieldWithHotkey("People", strings.Join(people, ", "), "", ""))
+	}
+	if len(tasks) > 0 {
+		lines = append(lines, m.renderFieldWithHotkey("Tasks", strings.Join(tasks, ", "), "", ""))
+	}
+	if len(ideas) > 0 {
+		lines = append(lines, m.renderFieldWithHotkey("Ideas", strings.Join(ideas, ", "), "", ""))
+	}
+	return lines
 }
 
 // wrapText wraps text to the specified width
