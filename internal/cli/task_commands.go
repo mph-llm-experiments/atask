@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
@@ -293,16 +294,17 @@ func taskShowCommand(cfg *config.Config) *Command {
 // taskListCommand lists tasks
 func taskListCommand(cfg *config.Config) *Command {
 	var (
-		all      bool
-		area     string
-		status   string
-		priority string
-		project  string
-		overdue  bool
-		soon     bool
-		sortBy   string
-		reverse  bool
-		search   string
+		all        bool
+		area       string
+		status     string
+		priority   string
+		project    string
+		overdue    bool
+		soon       bool
+		sortBy     string
+		reverse    bool
+		search     string
+		plannedFor string
 	)
 
 	cmd := &Command{
@@ -321,6 +323,7 @@ func taskListCommand(cfg *config.Config) *Command {
 	cmd.Flags.BoolVar(&overdue, "overdue", false, "Show only overdue tasks")
 	cmd.Flags.BoolVar(&soon, "soon", false, "Show tasks due soon")
 	cmd.Flags.StringVar(&search, "search", "", "Search in task content (full-text)")
+	cmd.Flags.StringVar(&plannedFor, "planned-for", "", "Filter by planned_for date (today, YYYY-MM-DD, or any)")
 	cmd.Flags.StringVar(&sortBy, "sort", "modified", "Sort by: modified, priority, due, created")
 	cmd.Flags.BoolVar(&reverse, "reverse", false, "Reverse sort order")
 
@@ -390,6 +393,22 @@ func taskListCommand(cfg *config.Config) *Command {
 			if search != "" {
 				if !strings.Contains(strings.ToLower(t.Content), strings.ToLower(search)) {
 					continue
+				}
+			}
+			if plannedFor != "" {
+				switch strings.ToLower(plannedFor) {
+				case "any":
+					if t.PlannedFor == "" {
+						continue
+					}
+				case "today":
+					if t.PlannedFor != time.Now().Format("2006-01-02") {
+						continue
+					}
+				default:
+					if t.PlannedFor != plannedFor {
+						continue
+					}
 				}
 			}
 			tasks = append(tasks, *t)
@@ -653,6 +672,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 		estimate     int
 		status       string
 		recur        string
+		planFor      string
 		addPerson    string
 		removePerson string
 		addTask      string
@@ -678,6 +698,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 	cmd.Flags.IntVar(&estimate, "estimate", -1, "Set time estimate")
 	cmd.Flags.StringVar(&status, "status", "", "Set status (open, done, paused, delegated, dropped)")
 	cmd.Flags.StringVar(&recur, "recur", "", "Set recurrence (use 'none' to clear)")
+	cmd.Flags.StringVar(&planFor, "plan-for", "", "Set planned_for date (natural language, YYYY-MM-DD, or 'none' to clear)")
 
 	cmd.Flags.StringVar(&addPerson, "add-person", "", "Add related contact (ULID)")
 	cmd.Flags.StringVar(&removePerson, "remove-person", "", "Remove related contact (ULID)")
@@ -807,6 +828,21 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 			} else if recurPattern != "" {
 				t.TaskMetadata.Recur = recurPattern
 				changed = true
+			}
+
+			if planFor != "" {
+				if strings.ToLower(planFor) == "none" {
+					t.PlannedFor = ""
+					changed = true
+				} else {
+					parsed, err := denote.ParseNaturalDate(planFor)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Invalid --plan-for date for task ID %d: %v\n", t.IndexID, err)
+						continue
+					}
+					t.PlannedFor = parsed
+					changed = true
+				}
 			}
 
 			// Cross-app relationship updates
@@ -994,9 +1030,27 @@ func taskEditCommand(cfg *config.Config) *Command {
 	return &Command{
 		Name:        "edit",
 		Usage:       "atask task edit <task-id>",
-		Description: "Edit task in external editor or TUI",
+		Description: "Open task file in $EDITOR",
 		Run: func(c *Command, args []string) error {
-			return fmt.Errorf("not yet implemented")
+			if len(args) == 0 {
+				return fmt.Errorf("usage: atask task edit <task-id>")
+			}
+
+			t, err := lookupTask(cfg.NotesDirectory, args[0])
+			if err != nil {
+				return err
+			}
+
+			editor := os.Getenv("EDITOR")
+			if editor == "" {
+				editor = "vi"
+			}
+
+			cmd := exec.Command(editor, t.FilePath)
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			return cmd.Run()
 		},
 	}
 }
@@ -1004,10 +1058,55 @@ func taskEditCommand(cfg *config.Config) *Command {
 func taskDeleteCommand(cfg *config.Config) *Command {
 	return &Command{
 		Name:        "delete",
-		Usage:       "atask task delete <task-ids>",
-		Description: "Delete tasks (with confirmation)",
+		Usage:       "atask task delete <task-id> [--confirm]",
+		Description: "Delete a task file",
 		Run: func(c *Command, args []string) error {
-			return fmt.Errorf("not yet implemented")
+			if len(args) == 0 {
+				return fmt.Errorf("usage: atask task delete <task-id> [--confirm]")
+			}
+
+			confirm := false
+			idRef := ""
+			for _, arg := range args {
+				if arg == "--confirm" {
+					confirm = true
+				} else if idRef == "" {
+					idRef = arg
+				}
+			}
+			if idRef == "" {
+				return fmt.Errorf("usage: atask task delete <task-id> [--confirm]")
+			}
+
+			t, err := lookupTask(cfg.NotesDirectory, idRef)
+			if err != nil {
+				return err
+			}
+
+			if !confirm {
+				return fmt.Errorf("use --confirm to delete task '%s' (%s)", t.Title, t.FilePath)
+			}
+
+			if err := os.Remove(t.FilePath); err != nil {
+				return fmt.Errorf("failed to delete task: %w", err)
+			}
+
+			if globalFlags.JSON {
+				result := map[string]interface{}{
+					"deleted":  true,
+					"index_id": t.IndexID,
+					"title":    t.Title,
+					"file":     t.FilePath,
+				}
+				data, _ := json.MarshalIndent(result, "", "  ")
+				fmt.Println(string(data))
+				return nil
+			}
+
+			if !globalFlags.Quiet {
+				fmt.Printf("Deleted task #%d: %s\n", t.IndexID, t.Title)
+			}
+			return nil
 		},
 	}
 }
