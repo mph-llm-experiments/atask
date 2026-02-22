@@ -146,7 +146,7 @@ atask log <task-id> "message"
 ```bash
 atask project new "Title" [-p priority] [--due date] [--start date] [--area area] [--tags tags]
 atask project list [--all] [--area area] [-p priority] [--status status] [--sort field] [--search term] --json
-atask project update [options] <project-ids>    # same update flags as tasks + --start, --status
+atask project update [options] <project-ids>    # --title, --priority, --due, --start, --area, --status
 atask project tasks <project-id> [--all] [--sort field] [--status status] --json
 ```
 

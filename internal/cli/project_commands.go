@@ -653,6 +653,7 @@ func projectTasksCommand(cfg *config.Config) *Command {
 // projectUpdateCommand updates project metadata
 func projectUpdateCommand(cfg *config.Config) *Command {
 	var (
+		title        string
 		priority     string
 		due          string
 		area         string
@@ -673,6 +674,7 @@ func projectUpdateCommand(cfg *config.Config) *Command {
 		Flags:       flag.NewFlagSet("project-update", flag.ExitOnError),
 	}
 
+	cmd.Flags.StringVar(&title, "title", "", "Set title")
 	cmd.Flags.StringVar(&priority, "p", "", "Set priority (p1, p2, p3)")
 	cmd.Flags.StringVar(&priority, "priority", "", "Set priority (p1, p2, p3)")
 	cmd.Flags.StringVar(&due, "due", "", "Set due date")
@@ -723,6 +725,10 @@ func projectUpdateCommand(cfg *config.Config) *Command {
 
 			// Apply updates
 			changed := false
+			if title != "" {
+				p.Title = title
+				changed = true
+			}
 			if priority != "" {
 				p.ProjectMetadata.Priority = priority
 				changed = true
