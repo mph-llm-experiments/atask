@@ -7,7 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/lipgloss v0.9.1
 	github.com/fatih/color v1.18.0
-	github.com/mph-llm-experiments/acore v0.2.0
+	github.com/mph-llm-experiments/acore v0.3.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
