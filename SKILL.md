@@ -350,6 +350,20 @@ Use `atask action new` instead of direct commands when:
 
 For routine operations the user explicitly requests, use direct commands (`atask new`, `atask update`, etc.).
 
+## Sync (R2 Cloud Storage)
+
+Sync task and project files to/from Cloudflare R2. Requires `[r2]` section in config.toml.
+
+```bash
+atask sync            # Push local → R2 (default)
+atask sync --push     # Push local → R2
+atask sync --pull     # Pull R2 → local
+```
+
+Push uploads new/changed local files to R2 and deletes R2-only files. Pull does the reverse. Only `*.md` entity files are synced (not counter files or config).
+
+Automatic sync happens at CLI startup (pull) and shutdown (push) when R2 is configured, but only for interactive use — skipped when `--json` is set. Automatic sync never deletes files; only explicit `sync --push`/`--pull` can delete.
+
 ## Configuration
 
 Config: `~/.config/acore/config.toml`

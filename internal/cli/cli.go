@@ -30,6 +30,12 @@ func Run(cfg *config.Config, args []string) error {
 		cfg.NotesDirectory = globalFlags.Dir
 	}
 
+	// Sync on startup/shutdown — skip for --json (programmatic/aweb use)
+	if !globalFlags.JSON {
+		SyncOnStartup(cfg)
+		defer SyncOnShutdown(cfg)
+	}
+
 	// If no arguments or just --tui, launch TUI
 	if len(remaining) == 0 || globalFlags.TUI {
 		if globalFlags.TUI || len(os.Args) == 1 {
@@ -70,6 +76,7 @@ Action Queue Commands:
   action reject    Reject an action
 
 Other Commands:
+  sync        Sync files with Cloudflare R2
   completion  Generate shell completions
 
 Global Options:
@@ -88,10 +95,11 @@ Global Options:
 		root.Subcommands = append(root.Subcommands, cmd)
 	}
 	
-	// Add project, action, completion, and migrate commands
+	// Add project, action, sync, completion, and migrate commands
 	root.Subcommands = append(root.Subcommands,
 		ProjectCommand(cfg),
 		ActionCommand(cfg),
+		SyncCommand(cfg),
 		CompletionCommand(cfg),
 		MigrateCommand(cfg),
 	)
