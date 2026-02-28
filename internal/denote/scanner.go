@@ -24,15 +24,15 @@ func NewScanner(dir string) *Scanner {
 // FindAllTaskAndProjectFiles finds all task and project files and returns File views.
 func (s *Scanner) FindAllTaskAndProjectFiles() ([]File, error) {
 	var allFiles []File
-	sc := &acore.Scanner{Dir: s.BaseDir}
+	sc := &acore.Scanner{Store: acore.NewLocalStore(s.BaseDir)}
 
 	// Find task files
-	taskPaths, err := sc.FindByType("task")
+	taskNames, err := sc.FindByType("task")
 	if err != nil {
 		return nil, err
 	}
-	for _, path := range taskPaths {
-		task, err := ParseTaskFile(path)
+	for _, name := range taskNames {
+		task, err := ParseTaskFile(filepath.Join(s.BaseDir, name))
 		if err != nil {
 			continue
 		}
@@ -40,12 +40,12 @@ func (s *Scanner) FindAllTaskAndProjectFiles() ([]File, error) {
 	}
 
 	// Find project files
-	projectPaths, err := sc.FindByType("project")
+	projectNames, err := sc.FindByType("project")
 	if err != nil {
 		return nil, err
 	}
-	for _, path := range projectPaths {
-		project, err := ParseProjectFile(path)
+	for _, name := range projectNames {
+		project, err := ParseProjectFile(filepath.Join(s.BaseDir, name))
 		if err != nil {
 			continue
 		}
@@ -62,15 +62,15 @@ func (s *Scanner) FindAllNotes() ([]File, error) {
 
 // FindTasks finds all task files in the directory
 func (s *Scanner) FindTasks() ([]*Task, error) {
-	sc := &acore.Scanner{Dir: s.BaseDir}
-	paths, err := sc.FindByType("task")
+	sc := &acore.Scanner{Store: acore.NewLocalStore(s.BaseDir)}
+	names, err := sc.FindByType("task")
 	if err != nil {
 		return nil, err
 	}
 
 	var tasks []*Task
-	for _, path := range paths {
-		task, err := ParseTaskFile(path)
+	for _, name := range names {
+		task, err := ParseTaskFile(filepath.Join(s.BaseDir, name))
 		if err != nil {
 			continue
 		}
@@ -82,15 +82,15 @@ func (s *Scanner) FindTasks() ([]*Task, error) {
 
 // FindProjects finds all project files in the directory
 func (s *Scanner) FindProjects() ([]*Project, error) {
-	sc := &acore.Scanner{Dir: s.BaseDir}
-	paths, err := sc.FindByType("project")
+	sc := &acore.Scanner{Store: acore.NewLocalStore(s.BaseDir)}
+	names, err := sc.FindByType("project")
 	if err != nil {
 		return nil, err
 	}
 
 	var projects []*Project
-	for _, path := range paths {
-		project, err := ParseProjectFile(path)
+	for _, name := range names {
+		project, err := ParseProjectFile(filepath.Join(s.BaseDir, name))
 		if err != nil {
 			continue
 		}
@@ -109,15 +109,15 @@ func (s *Scanner) FindActions() ([]*Action, error) {
 		return nil, nil
 	}
 
-	sc := &acore.Scanner{Dir: queueDir}
-	paths, err := sc.FindByType("action")
+	sc := &acore.Scanner{Store: acore.NewLocalStore(queueDir)}
+	names, err := sc.FindByType("action")
 	if err != nil {
 		return nil, err
 	}
 
 	var actions []*Action
-	for _, path := range paths {
-		action, err := ParseActionFile(path)
+	for _, name := range names {
+		action, err := ParseActionFile(filepath.Join(queueDir, name))
 		if err != nil {
 			continue
 		}
@@ -135,15 +135,15 @@ func (s *Scanner) FindArchivedActions() ([]*Action, error) {
 		return nil, nil
 	}
 
-	sc := &acore.Scanner{Dir: archiveDir}
-	paths, err := sc.FindByType("action")
+	sc := &acore.Scanner{Store: acore.NewLocalStore(archiveDir)}
+	names, err := sc.FindByType("action")
 	if err != nil {
 		return nil, err
 	}
 
 	var actions []*Action
-	for _, path := range paths {
-		action, err := ParseActionFile(path)
+	for _, name := range names {
+		action, err := ParseActionFile(filepath.Join(archiveDir, name))
 		if err != nil {
 			continue
 		}

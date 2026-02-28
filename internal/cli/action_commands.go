@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -63,7 +65,7 @@ func (f *fieldFlag) Set(val string) error {
 
 func actionNewCommand(cfg *config.Config) *Command {
 	fs := flag.NewFlagSet("new", flag.ContinueOnError)
-	actionType := fs.String("action-type", "", "Action type: task_create|task_update|idea_create|idea_update|people_update|people_log")
+	actionType := fs.String("action-type", "", "Action type (e.g. task_create, calendar_reschedule, or any plugin type)")
 	proposedBy := fs.String("proposed-by", "cli", "Agent identifier")
 	body := fs.String("body", "", "Reasoning/context for the action")
 	fields := &fieldFlag{values: make(map[string]string)}
@@ -82,9 +84,6 @@ func actionNewCommand(cfg *config.Config) *Command {
 			title := args[0]
 			if *actionType == "" {
 				return fmt.Errorf("--action-type is required")
-			}
-			if !denote.IsValidActionType(*actionType) {
-				return fmt.Errorf("invalid action type: %s", *actionType)
 			}
 
 			bodyText := *body
@@ -269,9 +268,6 @@ func actionUpdateCommand(cfg *config.Config) *Command {
 			}
 
 			if *actionType != "" {
-				if !denote.IsValidActionType(*actionType) {
-					return fmt.Errorf("invalid action type: %s", *actionType)
-				}
 				action.ActionType = *actionType
 				changed = true
 			}
@@ -286,7 +282,7 @@ func actionUpdateCommand(cfg *config.Config) *Command {
 			}
 
 			action.Modified = acore.Now()
-			if err := acore.UpdateFrontmatter(action.FilePath, action); err != nil {
+			if err := acore.UpdateFrontmatter(acore.NewLocalStore(filepath.Dir(action.FilePath)), filepath.Base(action.FilePath), action); err != nil {
 				return fmt.Errorf("failed to update action: %w", err)
 			}
 
@@ -347,7 +343,7 @@ func actionApproveCommand(cfg *config.Config) *Command {
 			// Mark as executed and archive
 			action.Status = denote.ActionExecuted
 			action.Modified = acore.Now()
-			if err := acore.UpdateFrontmatter(action.FilePath, action); err != nil {
+			if err := acore.UpdateFrontmatter(acore.NewLocalStore(filepath.Dir(action.FilePath)), filepath.Base(action.FilePath), action); err != nil {
 				return fmt.Errorf("failed to update action status: %w", err)
 			}
 
@@ -392,7 +388,7 @@ func actionRejectCommand(cfg *config.Config) *Command {
 
 			action.Status = denote.ActionRejected
 			action.Modified = acore.Now()
-			if err := acore.UpdateFrontmatter(action.FilePath, action); err != nil {
+			if err := acore.UpdateFrontmatter(acore.NewLocalStore(filepath.Dir(action.FilePath)), filepath.Base(action.FilePath), action); err != nil {
 				return fmt.Errorf("failed to update action status: %w", err)
 			}
 
@@ -414,8 +410,50 @@ func actionRejectCommand(cfg *config.Config) *Command {
 	}
 }
 
+// executePlugin runs an external plugin script with JSON on stdin.
+func executePlugin(pluginPath string, action *denote.Action) ([]byte, error) {
+	input := map[string]interface{}{
+		"action_type": action.ActionType,
+		"title":       action.Title,
+		"fields":      action.Fields,
+	}
+	inputJSON, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal plugin input: %w", err)
+	}
+
+	cmd := exec.Command(pluginPath)
+	cmd.Stdin = bytes.NewReader(inputJSON)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("plugin failed: %s\nStderr: %s", err, stderr.String())
+	}
+
+	return stdout.Bytes(), nil
+}
+
+// pluginDir returns the path to the acore plugins directory (~/.config/acore/plugins).
+func pluginDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config", "acore", "plugins")
+}
+
 // executeAction maps action_type + fields to a CLI command and runs it.
 func executeAction(action *denote.Action) ([]byte, error) {
+	// Try plugin first
+	if dir := pluginDir(); dir != "" {
+		pluginPath := filepath.Join(dir, action.ActionType)
+		if info, err := os.Stat(pluginPath); err == nil && !info.IsDir() {
+			return executePlugin(pluginPath, action)
+		}
+	}
+
 	var bin string
 	var args []string
 
@@ -499,7 +537,7 @@ func executeAction(action *denote.Action) ([]byte, error) {
 		addFieldFlag(action.Fields, &args, "interaction", "-interaction")
 
 	default:
-		return nil, fmt.Errorf("unknown action type: %s", action.ActionType)
+		return nil, fmt.Errorf("unknown action type: %s (no plugin found at %s)", action.ActionType, filepath.Join(pluginDir(), action.ActionType))
 	}
 
 	args = append(args, "--json", "--quiet")

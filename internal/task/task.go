@@ -10,10 +10,17 @@ import (
 	"github.com/mph-llm-experiments/atask/internal/denote"
 )
 
+// storeAndName creates a LocalStore from the directory of an absolute path
+// and returns the relative filename.
+func storeAndName(path string) (acore.Store, string) {
+	return acore.NewLocalStore(filepath.Dir(path)), filepath.Base(path)
+}
+
 // CreateTask creates a new task file with YAML frontmatter using acore conventions.
 func CreateTask(dir, title, content string, tags []string, area string) (*denote.Task, error) {
 	// Get ID counter
-	counter, err := acore.NewIndexCounter(dir, "atask")
+	store := acore.NewLocalStore(dir)
+	counter, err := acore.NewIndexCounter(store, "atask")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ID counter: %w", err)
 	}
@@ -47,7 +54,7 @@ func CreateTask(dir, title, content string, tags []string, area string) (*denote
 	filepath := dir + "/" + filename
 	task.FilePath = filepath
 
-	if err := acore.WriteFile(filepath, task, content); err != nil {
+	if err := acore.WriteFile(store, filename, task, content); err != nil {
 		return nil, fmt.Errorf("failed to write task file: %w", err)
 	}
 
@@ -57,7 +64,8 @@ func CreateTask(dir, title, content string, tags []string, area string) (*denote
 
 // CreateProject creates a new project file with YAML frontmatter using acore conventions.
 func CreateProject(dir, title, content string, tags []string) (*denote.Project, error) {
-	counter, err := acore.NewIndexCounter(dir, "atask")
+	store := acore.NewLocalStore(dir)
+	counter, err := acore.NewIndexCounter(store, "atask")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ID counter: %w", err)
 	}
@@ -89,7 +97,7 @@ func CreateProject(dir, title, content string, tags []string) (*denote.Project, 
 	filepath := dir + "/" + filename
 	project.FilePath = filepath
 
-	if err := acore.WriteFile(filepath, project, content); err != nil {
+	if err := acore.WriteFile(store, filename, project, content); err != nil {
 		return nil, fmt.Errorf("failed to write project file: %w", err)
 	}
 
@@ -167,7 +175,8 @@ func FindProjectByEntityID(dir string, entityID string) (*denote.Project, error)
 // CloneTaskForRecurrence creates a new task based on an existing recurring task
 // with a new due date.
 func CloneTaskForRecurrence(dir string, original *denote.Task, newDueDate string) (*denote.Task, error) {
-	counter, err := acore.NewIndexCounter(dir, "atask")
+	store := acore.NewLocalStore(dir)
+	counter, err := acore.NewIndexCounter(store, "atask")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ID counter: %w", err)
 	}
@@ -206,7 +215,7 @@ func CloneTaskForRecurrence(dir string, original *denote.Task, newDueDate string
 	// Extract body content
 	body := extractBody(original.Content)
 
-	if err := acore.WriteFile(filepath, task, body); err != nil {
+	if err := acore.WriteFile(store, filename, task, body); err != nil {
 		return nil, fmt.Errorf("failed to write cloned task: %w", err)
 	}
 
@@ -233,7 +242,8 @@ func CreateAction(dir, title, actionType, proposedBy, body string, fields map[st
 		return nil, fmt.Errorf("failed to create queue directory: %w", err)
 	}
 
-	counter, err := acore.NewIndexCounter(queueDir, "atask-action")
+	queueStore := acore.NewLocalStore(queueDir)
+	counter, err := acore.NewIndexCounter(queueStore, "atask-action")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get action ID counter: %w", err)
 	}
@@ -264,7 +274,7 @@ func CreateAction(dir, title, actionType, proposedBy, body string, fields map[st
 	fp := filepath.Join(queueDir, filename)
 	action.FilePath = fp
 
-	if err := acore.WriteFile(fp, action, body); err != nil {
+	if err := acore.WriteFile(queueStore, filename, action, body); err != nil {
 		return nil, fmt.Errorf("failed to write action file: %w", err)
 	}
 

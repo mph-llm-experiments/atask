@@ -23,7 +23,8 @@ func UpdateTaskStatus(filepath string, newStatus string) error {
 	task.Status = newStatus
 	task.Modified = acore.Now()
 
-	return acore.UpdateFrontmatter(filepath, task)
+	s, n := storeAndName(filepath)
+	return acore.UpdateFrontmatter(s, n, task)
 }
 
 // UpdateTaskPriority updates the priority field in a task file.
@@ -40,7 +41,8 @@ func UpdateTaskPriority(filepath string, newPriority string) error {
 	task.Priority = newPriority
 	task.Modified = acore.Now()
 
-	return acore.UpdateFrontmatter(filepath, task)
+	s, n := storeAndName(filepath)
+	return acore.UpdateFrontmatter(s, n, task)
 }
 
 // UpdateTaskProjectID updates the project_id field in a task file.
@@ -53,7 +55,8 @@ func UpdateTaskProjectID(filepath string, projectID string) error {
 	task.ProjectID = projectID
 	task.Modified = acore.Now()
 
-	return acore.UpdateFrontmatter(filepath, task)
+	s, n := storeAndName(filepath)
+	return acore.UpdateFrontmatter(s, n, task)
 }
 
 // UpdateTaskDueDate updates the due_date field in a task file.
@@ -66,7 +69,8 @@ func UpdateTaskDueDate(filepath string, dueDate string) error {
 	task.DueDate = dueDate
 	task.Modified = acore.Now()
 
-	return acore.UpdateFrontmatter(filepath, task)
+	s, n := storeAndName(filepath)
+	return acore.UpdateFrontmatter(s, n, task)
 }
 
 // UpdateTaskStartDate updates the start_date field in a task file.
@@ -79,7 +83,8 @@ func UpdateTaskStartDate(filepath string, startDate string) error {
 	task.StartDate = startDate
 	task.Modified = acore.Now()
 
-	return acore.UpdateFrontmatter(filepath, task)
+	s, n := storeAndName(filepath)
+	return acore.UpdateFrontmatter(s, n, task)
 }
 
 // UpdateTaskEstimate updates the estimate field in a task file.
@@ -96,7 +101,8 @@ func UpdateTaskEstimate(filepath string, estimate int) error {
 	task.Estimate = estimate
 	task.Modified = acore.Now()
 
-	return acore.UpdateFrontmatter(filepath, task)
+	s, n := storeAndName(filepath)
+	return acore.UpdateFrontmatter(s, n, task)
 }
 
 // UpdateTaskArea updates the area field in a task file.
@@ -109,7 +115,8 @@ func UpdateTaskArea(filepath string, area string) error {
 	task.Area = area
 	task.Modified = acore.Now()
 
-	return acore.UpdateFrontmatter(filepath, task)
+	s, n := storeAndName(filepath)
+	return acore.UpdateFrontmatter(s, n, task)
 }
 
 // UpdateTaskTags updates the tags field in a task file.
@@ -122,7 +129,8 @@ func UpdateTaskTags(filepath string, tags []string) error {
 	task.Tags = tags
 	task.Modified = acore.Now()
 
-	return acore.UpdateFrontmatter(filepath, task)
+	s, n := storeAndName(filepath)
+	return acore.UpdateFrontmatter(s, n, task)
 }
 
 // BulkUpdateTaskStatus updates status for multiple tasks.
@@ -138,7 +146,8 @@ func BulkUpdateTaskStatus(filepaths []string, newStatus string) error {
 // UpdateProjectFile updates a project file with new metadata.
 func UpdateProjectFile(path string, project *Project) error {
 	project.Modified = acore.Now()
-	return acore.UpdateFrontmatter(path, project)
+	s, n := storeAndName(path)
+	return acore.UpdateFrontmatter(s, n, project)
 }
 
 // AddLogEntry adds a timestamped log entry to a task file.

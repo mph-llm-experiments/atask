@@ -8,5 +8,6 @@ import (
 // UpdateTaskFile updates the task metadata in a file using acore.
 func UpdateTaskFile(path string, task *denote.Task) error {
 	task.Modified = acore.Now()
-	return acore.UpdateFrontmatter(path, task)
+	store, name := storeAndName(path)
+	return acore.UpdateFrontmatter(store, name, task)
 }

@@ -28,7 +28,8 @@ func CreateNote(directory, title string, tags []string) (string, error) {
 	filename := acore.BuildFilename(id, title, "note")
 	path := filepath.Join(directory, filename)
 
-	if err := acore.WriteFile(path, &metadata, ""); err != nil {
+	store, name := storeAndName(path)
+	if err := acore.WriteFile(store, name, &metadata, ""); err != nil {
 		return "", fmt.Errorf("failed to create note: %w", err)
 	}
 

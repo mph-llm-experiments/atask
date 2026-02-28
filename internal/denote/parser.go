@@ -9,6 +9,13 @@ import (
 	"github.com/mph-llm-experiments/acore"
 )
 
+// storeAndName creates a LocalStore from the directory of an absolute path
+// and returns the relative filename. Used to bridge absolute-path callers
+// to the store-based acore API.
+func storeAndName(path string) (acore.Store, string) {
+	return acore.NewLocalStore(filepath.Dir(path)), filepath.Base(path)
+}
+
 var (
 	// Legacy Denote filename pattern for backward compatibility during migration
 	legacyDenotePattern = regexp.MustCompile(`^(\d{8}T\d{6})-{1,2}([^_]+)(?:__(.+))?\.md$`)
@@ -17,7 +24,8 @@ var (
 // ParseTaskFile reads and parses a task file using acore.
 func ParseTaskFile(path string) (*Task, error) {
 	var task Task
-	content, err := acore.ReadFile(path, &task)
+	store, name := storeAndName(path)
+	content, err := acore.ReadFile(store, name, &task)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse task file: %w", err)
 	}
@@ -54,7 +62,8 @@ func ParseTaskFile(path string) (*Task, error) {
 // ParseProjectFile reads and parses a project file using acore.
 func ParseProjectFile(path string) (*Project, error) {
 	var project Project
-	content, err := acore.ReadFile(path, &project)
+	store, name := storeAndName(path)
+	content, err := acore.ReadFile(store, name, &project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse project file: %w", err)
 	}
@@ -91,7 +100,8 @@ func ParseProjectFile(path string) (*Project, error) {
 // ParseActionFile reads and parses an action file using acore.
 func ParseActionFile(path string) (*Action, error) {
 	var action Action
-	content, err := acore.ReadFile(path, &action)
+	store, name := storeAndName(path)
+	content, err := acore.ReadFile(store, name, &action)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse action file: %w", err)
 	}

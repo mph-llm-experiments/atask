@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -730,7 +731,7 @@ func (m *Model) toggleTodayTag() error {
 	}
 
 	task.Modified = acore.Now()
-	if err := acore.UpdateFrontmatter(file.Path, task); err != nil {
+	if err := acore.UpdateFrontmatter(acore.NewLocalStore(filepath.Dir(file.Path)), filepath.Base(file.Path), task); err != nil {
 		return err
 	}
 
@@ -755,7 +756,7 @@ func (m *Model) clearAllTodayTags() error {
 		}
 		task.TaskMetadata.TodayDate = ""
 		task.Modified = acore.Now()
-		if err := acore.UpdateFrontmatter(file.Path, task); err != nil {
+		if err := acore.UpdateFrontmatter(acore.NewLocalStore(filepath.Dir(file.Path)), filepath.Base(file.Path), task); err != nil {
 			continue
 		}
 		count++
@@ -814,7 +815,7 @@ func (m *Model) updateTaskField(field, value string) error {
 	}
 
 	task.Modified = acore.Now()
-	if err := acore.UpdateFrontmatter(m.viewingFile.Path, task); err != nil {
+	if err := acore.UpdateFrontmatter(acore.NewLocalStore(filepath.Dir(m.viewingFile.Path)), filepath.Base(m.viewingFile.Path), task); err != nil {
 		return fmt.Errorf("failed to update task: %w", err)
 	}
 
@@ -878,7 +879,7 @@ func (m *Model) updateProjectField(field, value string) error {
 	}
 
 	project.Modified = acore.Now()
-	if err := acore.UpdateFrontmatter(m.viewingFile.Path, project); err != nil {
+	if err := acore.UpdateFrontmatter(acore.NewLocalStore(filepath.Dir(m.viewingFile.Path)), filepath.Base(m.viewingFile.Path), project); err != nil {
 		return fmt.Errorf("failed to update project: %w", err)
 	}
 
