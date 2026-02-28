@@ -88,6 +88,42 @@ func ParseProjectFile(path string) (*Project, error) {
 	return &project, nil
 }
 
+// ParseActionFile reads and parses an action file using acore.
+func ParseActionFile(path string) (*Action, error) {
+	var action Action
+	content, err := acore.ReadFile(path, &action)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse action file: %w", err)
+	}
+	action.Content = content
+	action.FilePath = path
+
+	if info, err := os.Stat(path); err == nil {
+		action.ModTime = info.ModTime()
+	}
+
+	if action.ID == "" {
+		base := filepath.Base(path)
+		if m := legacyDenotePattern.FindStringSubmatch(base); len(m) > 1 {
+			action.ID = m[1]
+		}
+	}
+
+	if action.Status == "" {
+		action.Status = ActionPending
+	}
+	if action.Type == "" {
+		action.Type = TypeAction
+	}
+	if action.Fields == nil {
+		action.Fields = make(map[string]string)
+	}
+
+	action.EnsureSlices()
+
+	return &action, nil
+}
+
 // contains checks if a slice contains a string
 func contains(slice []string, item string) bool {
 	for _, s := range slice {

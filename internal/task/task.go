@@ -2,6 +2,8 @@ package task
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mph-llm-experiments/acore"
@@ -222,6 +224,100 @@ func extractBody(content string) string {
 		return ""
 	}
 	return rest[idx+3:]
+}
+
+// CreateAction creates a new action file in the queue/ subdirectory.
+func CreateAction(dir, title, actionType, proposedBy, body string, fields map[string]string) (*denote.Action, error) {
+	queueDir := filepath.Join(dir, "queue")
+	if err := os.MkdirAll(queueDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create queue directory: %w", err)
+	}
+
+	counter, err := acore.NewIndexCounter(queueDir, "atask-action")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get action ID counter: %w", err)
+	}
+
+	indexID, err := counter.Next()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get next action index ID: %w", err)
+	}
+
+	id := acore.NewID()
+	now := acore.Now()
+
+	action := &denote.Action{}
+	action.ID = id
+	action.Title = title
+	action.IndexID = indexID
+	action.Type = denote.TypeAction
+	action.Tags = []string{"action"}
+	action.Created = now
+	action.Modified = now
+	action.ActionType = actionType
+	action.Status = denote.ActionPending
+	action.ProposedAt = now
+	action.ProposedBy = proposedBy
+	action.Fields = fields
+
+	filename := acore.BuildFilename(id, title, "action")
+	fp := filepath.Join(queueDir, filename)
+	action.FilePath = fp
+
+	if err := acore.WriteFile(fp, action, body); err != nil {
+		return nil, fmt.Errorf("failed to write action file: %w", err)
+	}
+
+	return denote.ParseActionFile(fp)
+}
+
+// FindActionByID finds an action by its index_id in the queue/ subdirectory.
+func FindActionByID(dir string, id int) (*denote.Action, error) {
+	scanner := denote.NewScanner(dir)
+	actions, err := scanner.FindActions()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, action := range actions {
+		if action.IndexID == id {
+			return action, nil
+		}
+	}
+
+	return nil, fmt.Errorf("action %d not found", id)
+}
+
+// FindActionByEntityID finds an action by its ULID.
+func FindActionByEntityID(dir string, entityID string) (*denote.Action, error) {
+	scanner := denote.NewScanner(dir)
+	actions, err := scanner.FindActions()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, action := range actions {
+		if action.ID == entityID {
+			return action, nil
+		}
+	}
+
+	return nil, fmt.Errorf("action with ID %s not found", entityID)
+}
+
+// ArchiveAction moves an action file to the queue/archive/ subdirectory.
+func ArchiveAction(dir string, action *denote.Action) error {
+	archiveDir := filepath.Join(dir, "queue", "archive")
+	if err := os.MkdirAll(archiveDir, 0755); err != nil {
+		return fmt.Errorf("failed to create archive directory: %w", err)
+	}
+
+	newPath := filepath.Join(archiveDir, filepath.Base(action.FilePath))
+	if err := os.Rename(action.FilePath, newPath); err != nil {
+		return fmt.Errorf("failed to archive action: %w", err)
+	}
+
+	return nil
 }
 
 // contains checks if a slice contains a string

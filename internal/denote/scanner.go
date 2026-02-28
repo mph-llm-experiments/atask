@@ -2,6 +2,7 @@ package denote
 
 import (
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -97,6 +98,59 @@ func (s *Scanner) FindProjects() ([]*Project, error) {
 	}
 
 	return projects, nil
+}
+
+// FindActions finds all action files in the queue/ subdirectory
+func (s *Scanner) FindActions() ([]*Action, error) {
+	queueDir := filepath.Join(s.BaseDir, "queue")
+
+	// Ensure queue dir exists
+	if _, err := os.Stat(queueDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	sc := &acore.Scanner{Dir: queueDir}
+	paths, err := sc.FindByType("action")
+	if err != nil {
+		return nil, err
+	}
+
+	var actions []*Action
+	for _, path := range paths {
+		action, err := ParseActionFile(path)
+		if err != nil {
+			continue
+		}
+		actions = append(actions, action)
+	}
+
+	return actions, nil
+}
+
+// FindArchivedActions finds action files in the queue/archive/ subdirectory
+func (s *Scanner) FindArchivedActions() ([]*Action, error) {
+	archiveDir := filepath.Join(s.BaseDir, "queue", "archive")
+
+	if _, err := os.Stat(archiveDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	sc := &acore.Scanner{Dir: archiveDir}
+	paths, err := sc.FindByType("action")
+	if err != nil {
+		return nil, err
+	}
+
+	var actions []*Action
+	for _, path := range paths {
+		action, err := ParseActionFile(path)
+		if err != nil {
+			continue
+		}
+		actions = append(actions, action)
+	}
+
+	return actions, nil
 }
 
 // SortTasks sorts tasks by various criteria

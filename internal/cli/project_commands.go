@@ -30,6 +30,7 @@ func ProjectCommand(cfg *config.Config) *Command {
 		projectShowCommand(cfg),
 		projectTasksCommand(cfg),
 		projectUpdateCommand(cfg),
+		projectLogCommand(cfg),
 	}
 
 	return cmd
@@ -60,7 +61,12 @@ func projectShowCommand(cfg *config.Config) *Command {
 			}
 
 			if globalFlags.JSON {
-				data, err := json.MarshalIndent(p, "", "  ")
+				type jsonProject struct {
+					*denote.Project
+					Content string `json:"content,omitempty"`
+				}
+				jp := jsonProject{Project: p, Content: p.Content}
+				data, err := json.MarshalIndent(jp, "", "  ")
 				if err != nil {
 					return fmt.Errorf("failed to marshal JSON: %w", err)
 				}
@@ -812,6 +818,57 @@ func projectUpdateCommand(cfg *config.Config) *Command {
 			fmt.Println("No projects updated")
 		}
 
+		return nil
+	}
+
+	return cmd
+}
+
+// projectLogCommand adds or deletes a timestamped log entry on a project
+func projectLogCommand(cfg *config.Config) *Command {
+	var deleteLine string
+
+	cmd := &Command{
+		Name:        "log",
+		Usage:       "atask project log <project-id> [message] [--delete <line>]",
+		Description: "Add or delete a timestamped log entry on a project",
+		Flags:       flag.NewFlagSet("project-log", flag.ExitOnError),
+	}
+
+	cmd.Flags.StringVar(&deleteLine, "delete", "", "Delete a log entry matching this exact line")
+
+	cmd.Run = func(c *Command, args []string) error {
+		if len(args) < 1 {
+			return fmt.Errorf("project ID required")
+		}
+
+		p, err := lookupProject(cfg.NotesDirectory, args[0])
+		if err != nil {
+			return err
+		}
+
+		if deleteLine != "" {
+			if err := denote.DeleteLogEntry(p.FilePath, deleteLine); err != nil {
+				return fmt.Errorf("failed to delete log entry: %v", err)
+			}
+			if !globalFlags.Quiet {
+				fmt.Printf("Deleted log entry from project ID %d: %s\n", p.IndexID, p.Title)
+			}
+			return nil
+		}
+
+		if len(args) < 2 {
+			return fmt.Errorf("message required (or use --delete)")
+		}
+
+		message := strings.Join(args[1:], " ")
+
+		if err := denote.AddLogEntry(p.FilePath, message); err != nil {
+			return fmt.Errorf("failed to add log entry: %v", err)
+		}
+		if !globalFlags.Quiet {
+			fmt.Printf("Added log entry to project ID %d: %s\n", p.IndexID, p.Title)
+		}
 		return nil
 	}
 

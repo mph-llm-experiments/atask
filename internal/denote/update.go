@@ -197,3 +197,43 @@ func AddLogEntry(filepath string, message string) error {
 
 	return nil
 }
+
+// DeleteLogEntry removes a log entry matching the given line from a task file.
+func DeleteLogEntry(filepath string, line string) error {
+	content, err := os.ReadFile(filepath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	found := -1
+	for i, l := range lines {
+		if l == line {
+			found = i
+			break
+		}
+	}
+
+	if found == -1 {
+		return fmt.Errorf("log entry not found")
+	}
+
+	// Remove the line
+	newLines := append(lines[:found], lines[found+1:]...)
+
+	// Collapse double blank lines
+	var collapsed []string
+	for i, l := range newLines {
+		if l == "" && i > 0 && len(collapsed) > 0 && collapsed[len(collapsed)-1] == "" {
+			continue
+		}
+		collapsed = append(collapsed, l)
+	}
+
+	newContent := strings.Join(collapsed, "\n")
+	if err := os.WriteFile(filepath, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}

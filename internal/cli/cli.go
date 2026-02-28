@@ -61,6 +61,14 @@ Project Commands:
   project update   Update project metadata
   project tasks    Show tasks for a project
 
+Action Queue Commands:
+  action new       Create a proposed action
+  action list      List pending actions
+  action show      Show action details
+  action update    Modify action fields
+  action approve   Approve and execute an action
+  action reject    Reject an action
+
 Other Commands:
   completion  Generate shell completions
 
@@ -80,9 +88,10 @@ Global Options:
 		root.Subcommands = append(root.Subcommands, cmd)
 	}
 	
-	// Add project, completion, and migrate commands
+	// Add project, action, completion, and migrate commands
 	root.Subcommands = append(root.Subcommands,
 		ProjectCommand(cfg),
+		ActionCommand(cfg),
 		CompletionCommand(cfg),
 		MigrateCommand(cfg),
 	)

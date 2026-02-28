@@ -184,6 +184,22 @@ const (
 	// File types
 	TypeTask    = "task"
 	TypeProject = "project"
+	TypeAction  = "action"
+
+	// Action statuses
+	ActionPending  = "pending"
+	ActionApproved = "approved"
+	ActionExecuted = "executed"
+	ActionFailed   = "failed"
+	ActionRejected = "rejected"
+
+	// Valid action types
+	ActionTypeTaskCreate   = "task_create"
+	ActionTypeTaskUpdate   = "task_update"
+	ActionTypeIdeaCreate   = "idea_create"
+	ActionTypeIdeaUpdate   = "idea_update"
+	ActionTypePeopleUpdate = "people_update"
+	ActionTypePeopleLog    = "people_log"
 )
 
 // IsValidTaskStatus checks if a status is valid for tasks
@@ -342,6 +358,43 @@ func IsValidEstimate(estimate int) bool {
 		if estimate == v {
 			return true
 		}
+	}
+	return false
+}
+
+// ActionMetadata holds domain-specific action queue fields.
+type ActionMetadata struct {
+	ActionType string            `yaml:"action_type" json:"action_type"`
+	Status     string            `yaml:"status" json:"status"`
+	ProposedAt string            `yaml:"proposed_at" json:"proposed_at"`
+	ProposedBy string            `yaml:"proposed_by" json:"proposed_by"`
+	Fields     map[string]string `yaml:"fields" json:"fields"`
+}
+
+// Action combines acore.Entity with action-specific metadata.
+type Action struct {
+	acore.Entity   `yaml:",inline"`
+	ActionMetadata `yaml:",inline"`
+	ModTime        time.Time `yaml:"-" json:"-"`
+	Content        string    `yaml:"-" json:"-"`
+}
+
+// IsValidActionType checks if an action type is valid
+func IsValidActionType(actionType string) bool {
+	switch actionType {
+	case ActionTypeTaskCreate, ActionTypeTaskUpdate,
+		ActionTypeIdeaCreate, ActionTypeIdeaUpdate,
+		ActionTypePeopleUpdate, ActionTypePeopleLog:
+		return true
+	}
+	return false
+}
+
+// IsValidActionStatus checks if an action status is valid
+func IsValidActionStatus(status string) bool {
+	switch status {
+	case ActionPending, ActionApproved, ActionExecuted, ActionFailed, ActionRejected:
+		return true
 	}
 	return false
 }

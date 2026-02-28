@@ -202,7 +202,12 @@ func taskShowCommand(cfg *config.Config) *Command {
 			}
 
 			if globalFlags.JSON {
-				data, err := json.MarshalIndent(t, "", "  ")
+				type jsonTask struct {
+					*denote.Task
+					Content string `json:"content,omitempty"`
+				}
+				jt := jsonTask{Task: t, Content: t.Content}
+				data, err := json.MarshalIndent(jt, "", "  ")
 				if err != nil {
 					return fmt.Errorf("failed to marshal JSON: %w", err)
 				}
@@ -305,6 +310,7 @@ func taskListCommand(cfg *config.Config) *Command {
 		reverse    bool
 		search     string
 		plannedFor string
+		tag        string
 	)
 
 	cmd := &Command{
@@ -324,6 +330,7 @@ func taskListCommand(cfg *config.Config) *Command {
 	cmd.Flags.BoolVar(&soon, "soon", false, "Show tasks due soon")
 	cmd.Flags.StringVar(&search, "search", "", "Search in task content (full-text)")
 	cmd.Flags.StringVar(&plannedFor, "planned-for", "", "Filter by planned_for date (today, YYYY-MM-DD, or any)")
+	cmd.Flags.StringVar(&tag, "tag", "", "Filter by tag")
 	cmd.Flags.StringVar(&sortBy, "sort", "modified", "Sort by: modified, priority, due, created")
 	cmd.Flags.BoolVar(&reverse, "reverse", false, "Reverse sort order")
 
@@ -388,6 +395,9 @@ func taskListCommand(cfg *config.Config) *Command {
 				continue
 			}
 			if soon && !denote.IsDueSoon(t.TaskMetadata.DueDate, cfg.SoonHorizon) {
+				continue
+			}
+			if tag != "" && !t.HasTag(tag) {
 				continue
 			}
 			if search != "" {
@@ -672,6 +682,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 		estimate     int
 		status       string
 		recur        string
+		tags         string
 		planFor      string
 		addPerson    string
 		removePerson string
@@ -698,6 +709,7 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 	cmd.Flags.IntVar(&estimate, "estimate", -1, "Set time estimate")
 	cmd.Flags.StringVar(&status, "status", "", "Set status (open, done, paused, delegated, dropped)")
 	cmd.Flags.StringVar(&recur, "recur", "", "Set recurrence (use 'none' to clear)")
+	cmd.Flags.StringVar(&tags, "tags", "", "Set tags (comma-separated, use 'none' to clear)")
 	cmd.Flags.StringVar(&planFor, "plan-for", "", "Set planned_for date (natural language, YYYY-MM-DD, or 'none' to clear)")
 
 	cmd.Flags.StringVar(&addPerson, "add-person", "", "Add related contact (ULID)")
@@ -827,6 +839,34 @@ func taskUpdateCommand(cfg *config.Config) *Command {
 				changed = true
 			} else if recurPattern != "" {
 				t.TaskMetadata.Recur = recurPattern
+				changed = true
+			}
+			if tags != "" {
+				if strings.ToLower(tags) == "none" {
+					// Keep only the type tag (task/project)
+					var kept []string
+					for _, tag := range t.Tags {
+						if tag == "task" || tag == "project" {
+							kept = append(kept, tag)
+						}
+					}
+					t.Tags = kept
+				} else {
+					// Replace user tags, preserve type tag
+					var kept []string
+					for _, tag := range t.Tags {
+						if tag == "task" || tag == "project" {
+							kept = append(kept, tag)
+						}
+					}
+					for _, tag := range strings.Split(tags, ",") {
+						tag = strings.TrimSpace(tag)
+						if tag != "" && tag != "task" && tag != "project" {
+							kept = append(kept, tag)
+						}
+					}
+					t.Tags = kept
+				}
 				changed = true
 			}
 
@@ -996,20 +1036,39 @@ func taskDoneCommand(cfg *config.Config) *Command {
 }
 
 func taskLogCommand(cfg *config.Config) *Command {
+	var deleteLine string
+
 	cmd := &Command{
 		Name:        "log",
-		Usage:       "atask task log <task-id> <message>",
-		Description: "Add a timestamped log entry to a task",
+		Usage:       "atask task log <task-id> [message] [--delete <line>]",
+		Description: "Add or delete a timestamped log entry on a task",
+		Flags:       flag.NewFlagSet("task-log", flag.ExitOnError),
 	}
 
+	cmd.Flags.StringVar(&deleteLine, "delete", "", "Delete a log entry matching this exact line")
+
 	cmd.Run = func(c *Command, args []string) error {
-		if len(args) < 2 {
-			return fmt.Errorf("task ID and message required")
+		if len(args) < 1 {
+			return fmt.Errorf("task ID required")
 		}
 
 		t, err := lookupTask(cfg.NotesDirectory, args[0])
 		if err != nil {
 			return err
+		}
+
+		if deleteLine != "" {
+			if err := denote.DeleteLogEntry(t.FilePath, deleteLine); err != nil {
+				return fmt.Errorf("failed to delete log entry: %v", err)
+			}
+			if !globalFlags.Quiet {
+				fmt.Printf("Deleted log entry from task ID %d: %s\n", t.IndexID, t.Title)
+			}
+			return nil
+		}
+
+		if len(args) < 2 {
+			return fmt.Errorf("message required (or use --delete)")
 		}
 
 		message := strings.Join(args[1:], " ")
