@@ -43,6 +43,7 @@ Options:
 - `--overdue` -- Show only overdue tasks
 - `--soon` -- Show tasks due soon
 - `--search` -- Full-text search in task content
+- `--planned-for` -- Filter by planned_for date (today, YYYY-MM-DD, or any)
 - `--sort, -s` -- Sort by: modified (default), priority, due, created
 - `--reverse, -r` -- Reverse sort order
 
@@ -104,7 +105,9 @@ Options:
 - `--estimate` -- Set time estimate
 - `--status` -- Set status (open, done, paused, delegated, dropped)
 - `--title` -- Set title
+- `--tags` -- Set tags (comma-separated, use `none` to clear)
 - `--recur` -- Set recurrence (use `none` to clear)
+- `--plan-for` -- Set planned_for date (natural language, YYYY-MM-DD, or `none` to clear)
 
 Cross-app relationship flags (values are ULIDs):
 - `--add-person <ulid>` / `--remove-person <ulid>`
@@ -175,6 +178,7 @@ Project update also supports cross-app relationship flags (`--add-person`, etc.)
   "priority": "p1",
   "due_date": "2026-02-20",
   "estimate": 5,
+  "recur": "weekly",
   "project_id": "195",
   "area": "work",
   "project_name": "Website Redesign"
@@ -182,6 +186,11 @@ Project update also supports cross-app relationship flags (`--add-person`, etc.)
 ```
 
 `atask list --json` returns `{"tasks": [...]}`. `atask show <id> --json` returns a single task object.
+
+Notes:
+- `project_name` appears in `list` output only, not in `show`
+- `estimate`, `recur`, `project_id`, `project_name`, `due_date` are omitted from JSON when not set
+- `atask show` does not include a `content` field (unlike anote/apeople show)
 
 ### Project
 
@@ -257,6 +266,89 @@ atask new "Follow up on proposal" --due "next friday" --json
 apeople update 5 --add-task <task-ulid>
 atask update <task-index-id> --add-person <contact-ulid>
 ```
+
+## Action Queue
+
+The action queue lets agents propose actions for human review instead of executing them directly. Humans can review, modify fields, approve, or reject proposed actions via the web UI or CLI.
+
+### action new -- Propose an action
+
+```bash
+atask action new "Title" --action-type <type> [--proposed-by agent-name] [--field key=value ...] [--body "reasoning"] --json
+```
+
+Action types: `task_create`, `task_update`, `idea_create`, `idea_update`, `people_update`, `people_log`
+
+Fields vary by action type:
+- `task_create`: `title`, `priority`, `due`, `area`, `project` (index_id), `tags` (comma-separated), `estimate`, `add_person` (ULID)
+- `task_update`: `target_id` (required), `title`, `status`, `priority`, `due`, `area`, `project`, `plan_for`, `add_person` (ULID)
+- `idea_create`: `title`, `kind`, `tags`
+- `idea_update`: `target_id` (required), `title`, `state`, `kind`, `maturity`
+- `people_update`: `target_id` (required), `state`, `plan_for`
+- `people_log`: `target_id` (required), `note` (required), `interaction`
+
+When proposing task actions, include as much context as you can determine:
+- **project**: If the task clearly belongs to an existing project, look it up with `atask project list --json` and include the `index_id`
+- **add_person**: If the task is related to a specific contact, look them up with `apeople list --json` and include their ULID (`id` field)
+- **area**: Set to `work` or `personal` based on context
+- **priority**: Set based on urgency/importance signals
+
+Example:
+```bash
+atask action new "Create follow-up task for Sarah" \
+  --action-type task_create \
+  --proposed-by claude-code \
+  --field title="Follow up on Sarah's proposal" \
+  --field priority=p2 \
+  --field due=2026-03-05 \
+  --field area=work \
+  --field project=195 \
+  --field add_person=01KJ1KHY4NFGESK9DDS4YEGH2J \
+  --body "Noticed task #42 paused 5 days, deadline moved up." \
+  --json
+```
+
+### action list -- List pending actions
+
+```bash
+atask action list [--all] --json
+```
+
+### action show -- Show action details
+
+```bash
+atask action show <id> --json
+```
+
+### action update -- Modify before approval
+
+```bash
+atask action update <id> [--field key=value ...] [--title "new title"] [--action-type type] --json
+```
+
+### action approve -- Approve and execute
+
+```bash
+atask action approve <id> --json
+```
+
+Executes the proposed action (e.g., creates the task), archives the action file.
+
+### action reject -- Reject and archive
+
+```bash
+atask action reject <id> --json
+```
+
+### When to use the action queue
+
+Use `atask action new` instead of direct commands when:
+- The user hasn't explicitly asked for the action
+- The action involves changes the user should review first
+- You're suggesting multiple actions as part of a workflow review
+- The context is ambiguous and human judgment would help
+
+For routine operations the user explicitly requests, use direct commands (`atask new`, `atask update`, etc.).
 
 ## Configuration
 
